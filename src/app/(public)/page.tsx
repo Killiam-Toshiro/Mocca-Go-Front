@@ -1,49 +1,34 @@
-import { Logo } from '@/components/logo';
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { ROLE_HOME } from '@/lib/auth/roles';
+import type { Metadata } from 'next';
+import { MenuView } from '@/components/menu/menu-view';
+import { SiteHeader } from '@/components/site-header';
 import { getSession } from '@/lib/server/session';
 
-/** Portada mínima (el incremento 2 la convierte en el menú). */
+export const metadata: Metadata = {
+  title: { absolute: 'Mocca Go · Menú' },
+  description: 'Café y snacks a domicilio dentro del campus de Icesi.',
+};
+
+/** Menú público: cualquiera puede mirarlo y armar su carrito sin cuenta (D-028). */
 export default async function HomePage() {
   const session = await getSession();
+  const role = session.status === 'ok' ? session.user.role : null;
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md items-center px-4">
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle className="text-2xl">
-            <h1 aria-label="Mocca Go">
-              <Logo iconClassName="size-12" textClassName="text-3xl" />
-            </h1>
-          </CardTitle>
-          <CardDescription>
-            Café y snacks a domicilio dentro del campus de Icesi.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-3 sm:grid-cols-2">
-          {session.status === 'ok' ? (
-            <Button asChild className="sm:col-span-2">
-              <Link href={ROLE_HOME[session.user.role]}>Ir a mi panel</Link>
-            </Button>
-          ) : (
-            <>
-              <Button asChild>
-                <Link href="/login">Ingresar</Link>
-              </Button>
-              <Button asChild variant="outline">
-                <Link href="/registro">Crear cuenta</Link>
-              </Button>
-            </>
-          )}
-        </CardContent>
-      </Card>
-    </main>
+    <>
+      <SiteHeader role={role} />
+      <main className="mx-auto max-w-5xl px-4 py-6">
+        <p className="mb-4 text-muted-foreground">
+          Café y snacks a domicilio dentro del campus de Icesi.
+        </p>
+        <MenuView
+          audience={
+            role === null
+              ? 'visitante'
+              : role === 'cliente'
+                ? 'cliente'
+                : 'personal'
+          }
+        />
+      </main>
+    </>
   );
 }

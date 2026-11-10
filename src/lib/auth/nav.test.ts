@@ -18,11 +18,12 @@ describe('NAV', () => {
     for (const item of NAV[role]) expect(canAccess(role, item.href)).toBe(true);
   });
 
-  it('solo «Inicio» está habilitada en este incremento', () => {
+  it('solo están habilitadas las secciones ya construidas', () => {
     for (const role of ROLES) {
-      expect(NAV[role].filter((i) => i.enabled).map((i) => i.label)).toEqual([
-        'Inicio',
-      ]);
+      const enabled = NAV[role].filter((i) => i.enabled).map((i) => i.label);
+      expect(enabled).toEqual(
+        role === 'cliente' ? ['Inicio', 'Menú'] : ['Inicio'],
+      );
     }
   });
 

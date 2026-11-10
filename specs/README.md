@@ -17,7 +17,7 @@ Plantillas en `specs/_templates/`.
 | N.º | Nombre | Estado |
 |---|---|---|
 | 001 | Base, login/registro y rutas por rol | en revisión (T-01 a T-26 hechas) |
-| 002 | Menú y carrito | pendiente |
+| 002 | Menú y carrito | implementado; falta tu prueba manual (T-14) y revisión |
 | 003 | Pedido, pago y seguimiento en vivo | pendiente |
 | 004 | Cocina | pendiente |
 | 005 | Repartidor | pendiente |

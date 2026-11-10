@@ -6,7 +6,9 @@
  * y `corta` (operador cuya sesión dura 3 s). Casos especiales:
  *   - login con `limitado` → 429
  *   - registro con `ocupado@example.com` → 409; con `limitado@example.com` → 429
- *   - GET /menu respeta behavior.menuDelayMs (ruta lenta)
+ *   - GET /menu devuelve `{ data }` (20 productos y 3 combos); respeta behavior.menuDelayMs
+ *     y behavior.menuStatus (≠ 0 responde ese error). Control para E2E, fuera de /api/v1:
+ *     POST /__mock/menu `{ sku, available?, price?, remove? | restore? }` y POST /__mock/menu/reset
  *   - behavior.failMe hace que GET /auth/me responda 500
  *   - GET /orders/stream emite 3 fragmentos separados por behavior.streamGapMs
  */
@@ -18,6 +20,7 @@ import type {
   ServerResponse,
 } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { buildMenu, type MockMenuItem } from './menu.ts';
 
 export const MOCK_PASSWORD = 'Password-123456';
 const PREFIX = '/api/v1';
@@ -50,7 +53,15 @@ export interface MockApi {
   port: number;
   /** Peticiones recibidas desde el último `reset()`. */
   requests: RecordedRequest[];
-  behavior: { menuDelayMs: number; streamGapMs: number; failMe: boolean };
+  behavior: {
+    menuDelayMs: number;
+    /** Si no es 0, `GET /menu` responde con ese estado de error. */
+    menuStatus: number;
+    streamGapMs: number;
+    failMe: boolean;
+  };
+  /** Menú vigente (se puede modificar en las pruebas). */
+  menu: MockMenuItem[];
   /** Cuántos flujos SSE terminaron de emitir. */
   streamsFinished: number;
   reset(): void;
@@ -156,11 +167,19 @@ export async function startMockApi(
     url: '',
     port: 0,
     requests: [],
-    behavior: { menuDelayMs: 0, streamGapMs: 150, failMe: false },
+    behavior: {
+      menuDelayMs: 0,
+      menuStatus: 0,
+      streamGapMs: 150,
+      failMe: false,
+    },
+    menu: buildMenu(),
     streamsFinished: 0,
     reset() {
       state.requests.length = 0;
       state.behavior.menuDelayMs = 0;
+      state.behavior.menuStatus = 0;
+      state.menu = buildMenu();
       state.behavior.streamGapMs = 150;
       state.behavior.failMe = false;
       state.streamsFinished = 0;
@@ -299,6 +318,35 @@ export async function startMockApi(
       body,
     });
 
+    if (url.pathname === '/__mock/menu/reset' && req.method === 'POST') {
+      state.menu = buildMenu();
+      return send(res, 204);
+    }
+    if (url.pathname === '/__mock/menu' && req.method === 'POST') {
+      const change = parseJson(body);
+      if (change?.restore === true) {
+        // Devuelve un solo producto a su estado original sin tocar los demás.
+        const base = buildMenu();
+        const original = base.find((p) => p.sku === change.sku);
+        if (!original) return fail(res, 404, 'Producto no encontrado');
+        const rest = state.menu.filter((p) => p.sku !== original.sku);
+        state.menu = [...rest, original].sort(
+          (a, b) =>
+            base.findIndex((p) => p.sku === a.sku) -
+            base.findIndex((p) => p.sku === b.sku),
+        );
+        return send(res, 204);
+      }
+      const product = state.menu.find((p) => p.sku === change?.sku);
+      if (!change || !product) return fail(res, 404, 'Producto no encontrado');
+      if (change.remove === true)
+        state.menu = state.menu.filter((p) => p !== product);
+      if (typeof change.available === 'boolean')
+        product.available = change.available;
+      if (typeof change.price === 'number') product.price = change.price;
+      return send(res, 204);
+    }
+
     if (!url.pathname.startsWith(`${PREFIX}/`))
       return fail(res, 404, 'Not Found');
     const route = `${req.method} ${url.pathname.slice(PREFIX.length)}`;
@@ -341,7 +389,9 @@ export async function startMockApi(
             setTimeout(resolve, state.behavior.menuDelayMs),
           );
         }
-        return send(res, 200, []);
+        if (state.behavior.menuStatus !== 0)
+          return fail(res, state.behavior.menuStatus, 'Error simulado');
+        return send(res, 200, { data: state.menu });
       case 'GET /users':
         if (!session) return fail(res, 401, 'Unauthorized');
         if (session.user.role !== 'admin')

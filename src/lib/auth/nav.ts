@@ -27,7 +27,7 @@ const soon = (href: string, label: string): NavItem => ({
 export const NAV: Record<Role, NavItem[]> = {
   cliente: [
     { href: ROLE_HOME.cliente, label: 'Inicio', enabled: true },
-    soon('/cliente/menu', 'Menú'),
+    { href: '/cliente/menu', label: 'Menú', enabled: true },
     soon('/cliente/pedidos', 'Mis pedidos'),
     soon('/cliente/perfil', 'Mi perfil'),
   ],

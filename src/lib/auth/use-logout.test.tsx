@@ -3,12 +3,22 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { jsonResponse } from '../../../tests/utils/render';
+import {
+  addToCart,
+  getSnapshot,
+  resetCartStoreForTests,
+} from '@/lib/cart/store';
+import { resetStorageForTests } from '@/lib/cart/storage';
 import { useLogout } from './use-logout';
 
 const navigate = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/browser', () => ({ navigate, currentPath: () => '/' }));
 
-beforeEach(() => navigate.mockClear());
+beforeEach(() => {
+  navigate.mockClear();
+  resetStorageForTests();
+  resetCartStoreForTests();
+});
 afterEach(() => vi.unstubAllGlobals());
 
 function setup() {
@@ -33,6 +43,21 @@ describe('useLogout', () => {
       '/api/auth/logout',
     );
     expect(client.getQueryData(['privado'])).toBeUndefined();
+  });
+
+  it('vacía el carrito al cerrar sesión (D-029)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse(null, 204)),
+    );
+    addToCart({ id: 'a', name: 'Capuchino', price: 4500 }, 2);
+    expect(getSnapshot().cart).toHaveLength(1);
+    const { result } = setup();
+
+    act(() => result.current.mutate());
+
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith('/login'));
+    expect(getSnapshot().cart).toHaveLength(0);
   });
 
   it('si el servidor falla, igual vacía la caché y va a /login', async () => {
