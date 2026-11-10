@@ -15,7 +15,7 @@ export default function RegisterPage() {
           ¿Ya tienes cuenta?{' '}
           <Link
             href="/login"
-            className="font-medium text-foreground underline underline-offset-4"
+            className="font-semibold text-brand-strong underline underline-offset-4"
           >
             Ingresar
           </Link>

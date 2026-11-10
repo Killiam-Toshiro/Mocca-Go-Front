@@ -1,3 +1,4 @@
+import { Logo } from '@/components/logo';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import {
@@ -18,7 +19,9 @@ export default async function HomePage() {
       <Card className="w-full">
         <CardHeader>
           <CardTitle className="text-2xl">
-            <h1>Mocca Go</h1>
+            <h1 aria-label="Mocca Go">
+              <Logo iconClassName="size-12" textClassName="text-3xl" />
+            </h1>
           </CardTitle>
           <CardDescription>
             Café y snacks a domicilio dentro del campus de Icesi.

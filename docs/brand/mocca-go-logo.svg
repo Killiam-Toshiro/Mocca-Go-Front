@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 96" role="img" aria-label="Mocca Go">
+  <!-- Activo de marca para usos fuera de la app (presentaciones, redes). Colores = tokens de src/app/globals.css. -->
+  <circle cx="48" cy="48" r="44" fill="#FD8000"/>
+  <path d="M27 44h38v13a19 19 0 0 1-19 19h0a19 19 0 0 1-19-19z" fill="#2E1B0F"/>
+  <path d="M65 49h5a7.5 7.5 0 0 1 0 15h-5" fill="none" stroke="#2E1B0F" stroke-width="5" stroke-linecap="round"/>
+  <path d="M38 22c-4 4 4 7 0 12M48 22c-4 4 4 7 0 12M58 22c-4 4 4 7 0 12" fill="none" stroke="#2E1B0F" stroke-width="3.6" stroke-linecap="round"/>
+  <text x="108" y="60" font-family="Georgia, 'Times New Roman', serif" font-size="44" font-weight="700" fill="#2E1B0F">Mocca <tspan fill="#A94400">Go</tspan></text>
+</svg>

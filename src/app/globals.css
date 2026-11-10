@@ -2,29 +2,44 @@
 @import 'tw-animate-css';
 
 /*
- * Tema neutro (base shadcn «neutral»). La identidad visual de Mocca Go aún no
- * está definida: cuando exista, basta con cambiar estos tokens.
+ * Tokens de color de Mocca Go: ÚNICO lugar donde se definen los colores.
+ * Para cambiar la identidad visual basta con editar los valores de este bloque;
+ * `src/lib/design/tokens.test.ts` comprueba que los pares de texto y fondo sigan
+ * cumpliendo contraste AA. Roles, valores y cómo cambiarlos: `docs/design-tokens.md`.
+ * (El ícono de la pestaña, `src/app/icon.svg`, no puede leer variables CSS: va aparte.)
  */
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.5 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.55 0.23 27);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.87 0 0);
-  --ring: oklch(0.55 0 0);
+
+  /* Superficies (marrones claros) */
+  --background: #fbf5ee; /* crema: fondo de la app */
+  --foreground: #2e1b0f; /* espresso: texto principal */
+  --card: #fffdfa; /* blanco cálido: tarjetas y formularios */
+  --card-foreground: #2e1b0f;
+  --popover: #fffdfa;
+  --popover-foreground: #2e1b0f;
+  --secondary: #f3e6d8; /* café con leche: menú lateral, zonas suaves */
+  --secondary-foreground: #2e1b0f;
+  --muted: #f3e6d8;
+  --muted-foreground: #735c49; /* tostado: texto secundario */
+  --accent: #f3e6d8; /* fondo al pasar el cursor */
+  --accent-foreground: #2e1b0f;
+
+  /* Marca (naranja ámbar). Sobre el ámbar el texto va en espresso, nunca en blanco. */
+  --primary: #fd8000; /* ámbar: botón principal, ítem activo, logo */
+  --primary-foreground: #2e1b0f;
+  --brand: #fd8000; /* ámbar de marca (logo); igual que --primary */
+  --brand-strong: #a94400; /* naranja tostado: enlaces y texto de marca */
+
+  /* Estados y contornos */
+  --destructive: #b42318; /* errores (rojo, distinto del naranja) */
+  --destructive-foreground: #ffffff;
+  --border: #e6d5c3; /* líneas decorativas */
+  --input: #9c8470; /* borde de campos: 3:1 sobre fondos claros */
+  --ring: #c25a00; /* anillo de foco */
+
+  /* Tipografía de marca (logo y títulos) */
+  --font-display: Georgia, 'Times New Roman', serif;
 }
 
 @theme inline {
@@ -46,6 +61,10 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --font-display: var(--font-display);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);

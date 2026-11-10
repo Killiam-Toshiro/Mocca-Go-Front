@@ -1,5 +1,6 @@
 'use client';
 
+import { Logo } from '@/components/logo';
 import { Menu, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { NavList } from '@/components/nav-list';
@@ -52,10 +53,10 @@ export function MobileNav({
           // Un clic sobre el fondo (el propio <dialog>) lo cierra.
           if (event.target === event.currentTarget) setOpen(false);
         }}
-        className="fixed inset-y-0 left-0 m-0 h-dvh max-h-none w-72 max-w-[85vw] border-r bg-background p-4 text-foreground backdrop:bg-black/50 open:flex open:flex-col md:hidden"
+        className="fixed inset-y-0 left-0 m-0 h-dvh max-h-none w-72 max-w-[85vw] border-r bg-secondary p-4 text-foreground backdrop:bg-black/50 open:flex open:flex-col md:hidden"
       >
         <div className="mb-4 flex items-center justify-between">
-          <span className="text-lg font-semibold">Mocca Go</span>
+          <Logo iconClassName="size-8" textClassName="text-lg" />
           <Button
             type="button"
             variant="ghost"

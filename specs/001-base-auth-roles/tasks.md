@@ -80,3 +80,5 @@
 - Lección para T-22: el E2E debe cubrir "Salir → /login y `/admin` vuelve a pedir login".
 
 - **P-03 corregido (2026-11-10):** el cliente veía su identificador interno. `useDisplayName` (`src/lib/auth/use-display-name.ts`) lee `fullName` de `GET /customers/me` y se usa en el encabezado y el saludo; sin nombre, «Hola» / «Mi cuenta». El mock ahora devuelve un `username` interno para los clientes (como el back real). 389 pruebas en verde; E2E: 59 pasadas, 1 omitida, y el registro comprueba «Hola, Ana Prueba».
+
+- **Paleta y logo aplicados (2026-11-10, D-027):** tokens en `src/app/globals.css`, componente `Logo`, ícono nuevo, `docs/design-tokens.md`, activos en `docs/brand/` y `tokens.test.ts` (23 pruebas de contraste AA). 412 pruebas en verde; E2E: 59 pasadas, 1 omitida. Con esto se atiende la parte visual de CA-19 y el contraste de CA-20 (medido: espresso sobre ámbar 6.5; borde de campos 3.5).

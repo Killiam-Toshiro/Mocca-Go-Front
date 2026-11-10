@@ -26,8 +26,8 @@ export function NavList({
                 base,
                 'outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 pathname === item.href
-                  ? 'bg-accent text-accent-foreground'
-                  : 'hover:bg-accent/60',
+                  ? 'bg-primary text-primary-foreground'
+                  : 'hover:bg-accent',
               )}
             >
               {item.label}

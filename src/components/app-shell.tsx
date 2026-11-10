@@ -10,6 +10,7 @@ import { useSession } from '@/components/providers/session-provider';
 import { Button } from '@/components/ui/button';
 import { NAV, ROLE_LABEL } from '@/lib/auth/nav';
 import { ROLE_HOME } from '@/lib/auth/roles';
+import { Logo } from '@/components/logo';
 import { useDisplayName } from '@/lib/auth/use-display-name';
 import { useLogout } from '@/lib/auth/use-logout';
 
@@ -30,13 +31,14 @@ export function AppShell({ children }: { children: ReactNode }) {
         Saltar al contenido
       </a>
 
-      <aside className="hidden border-r bg-card md:block">
+      <aside className="hidden border-r bg-secondary md:block">
         <div className="sticky top-0 grid gap-6 p-4">
           <Link
             href={ROLE_HOME[user.role]}
-            className="text-lg font-semibold tracking-tight outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label="Mocca Go"
+            className="rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            Mocca Go
+            <Logo />
           </Link>
           <nav aria-label="Principal">
             <NavList items={items} pathname={pathname} />
@@ -45,13 +47,14 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="flex min-w-0 flex-col">
-        <header className="sticky top-0 z-10 flex h-14 items-center gap-2 border-b bg-background px-4">
+        <header className="sticky top-0 z-10 flex h-14 items-center gap-2 border-b bg-card px-4">
           <MobileNav items={items} pathname={pathname} />
           <Link
             href={ROLE_HOME[user.role]}
-            className="text-lg font-semibold tracking-tight md:hidden"
+            aria-label="Mocca Go"
+            className="rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring md:hidden"
           >
-            Mocca Go
+            <Logo iconClassName="size-8" textClassName="text-lg" />
           </Link>
           <div className="ml-auto flex min-w-0 items-center gap-3">
             <p className="min-w-0 text-right text-sm leading-tight">

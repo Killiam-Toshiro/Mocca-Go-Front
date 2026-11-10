@@ -35,3 +35,7 @@ Los borradores usan pizarra oscura (≈ `#1E293B`) sobre gris claro, verde para 
 Estados con contraste ≥ 4,5 sobre su tinte: recibido `#1D4ED8`/`#DBEAFE`, en preparación `#92400E`/`#FEF3C7`, listo `#6D28D9`/`#EDE9FE`, en camino `#0E7490`/`#CFFAFE`, entregado `#15803D`/`#DCFCE7`, cancelado `#B91C1C`/`#FEE2E2`.
 
 **Decisión pendiente (usuario):** paleta definitiva. El incremento 1 usa los tokens neutros de shadcn; cambiar la paleta es sustituir las variables de `src/app/globals.css`.
+
+
+## Decisión de paleta (2026-11-10)
+Resuelta: se aprueba una paleta propia, naranja ámbar con marrones claros (no era ninguna de A, B o C). Ver `docs/design-tokens.md` y D-027.

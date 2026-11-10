@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { Logo } from '@/components/logo';
 import {
   Card,
   CardContent,
@@ -23,9 +24,10 @@ export function AuthCard({
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-6 px-4 py-8">
       <Link
         href="/"
-        className="text-center text-2xl font-semibold tracking-tight outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-label="Mocca Go"
+        className="mx-auto rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        Mocca Go
+        <Logo iconClassName="size-12" textClassName="text-3xl" />
       </Link>
       <Card>
         <CardHeader>

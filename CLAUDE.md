@@ -25,6 +25,7 @@ Next.js App Router · TypeScript estricto · Tailwind + shadcn/ui · TanStack Qu
 - Un 403 en `PATCH /auth/password` significa «contraseña actual incorrecta», no falta de permiso.
 - Errores del back: `{ statusCode, message: string | string[], error? }`, en español y mostrables.
 - Tiempo real por SSE con `fetch` (no `EventSource`, porque necesita `Authorization`): al recibir `ready` se vuelve a consultar la lista y luego se aplican los eventos `order`; reconexión con espera creciente.
+- **Colores solo por tokens** (D-027): se definen en `:root` de `src/app/globals.css` y se usan por rol (`bg-primary`, `text-brand-strong`…); nunca hex sueltos ni paletas de Tailwind. Sobre el ámbar, texto espresso (no blanco). `src/lib/design/tokens.test.ts` vigila el contraste AA. Guía en `docs/design-tokens.md`; el logo es `src/components/logo.tsx`.
 - Interfaz en `es-CO`; precios en COP sin decimales.
 
 ## Comandos
