@@ -246,4 +246,4 @@ tests/mock-api/                 # servidor mock para integración y E2E
 
 ## 14. Siguiente paso
 
-Spec, plan y tareas aprobados. Implementado y en revisión; T-24 (back real) parcial. Ver `docs/commits/001.md`.
+Spec, plan y tareas aprobados. Implementado y en revisión; T-24 (back real) verificada por el usuario. Ver `docs/commits/001.md`.

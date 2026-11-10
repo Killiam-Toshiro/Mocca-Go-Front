@@ -28,6 +28,7 @@ Formato: `D-nnn` · estado (`aceptada` | `propuesta` | `reemplazada por D-nnn`) 
 | D-023 | **IP real hacia el back sin cambiar el back.** El front tiene su propia variable `TRUST_PROXY_HOPS` (0 en local, 1 en Railway; mismo criterio que D-56 del back). Con n > 0, el proxy de API toma la IP del cliente de `X-Forwarded-For` contando n entradas desde la derecha, la valida como IP y la envía al back **sustituyendo** cualquier `X-Forwarded-For` entrante; con 0 no envía la cabecera. | Usuario, 2026-11-09 |
 | D-024 | `COOKIE_SECURE` (opcional) fuerza `Secure` y el prefijo `__Host-`; por defecto `true` si `NODE_ENV=production`. Permite correr un build de producción en `http://localhost` para las pruebas E2E. | Usuario, 2026-11-09 |
 | D-025 | TypeScript fijado en **5.9.3** (no 6.x ni 7.x): `typescript-eslint` 8.72 solo admite `<6.1` y `openapi-typescript` 7.13 declara `typescript@^5.x`. Corregida el 2026-11-09 al instalar (la propuesta inicial decía 6.0.x). Se revisa al actualizar esas herramientas. | Usuario, 2026-11-09 (ajuste técnico en T-01) |
+| D-026 | **Nombre visible del cliente.** `/auth/me` devuelve para un cliente su `username` interno (identificador de 17 caracteres hexadecimales generado por el back), que no debe mostrarse. El saludo y el encabezado usan `fullName` de `GET /customers/me` (consulta en el navegador con caché de 5 min, hook `useDisplayName`); mientras llega o si falla se muestra «Hola» / «Mi cuenta», nunca el identificador. El personal sigue usando su `username`. | Usuario, 2026-11-10 (hallazgo P-03) |
 
 ## Reemplazadas
 
@@ -42,5 +43,5 @@ Formato: `D-nnn` · estado (`aceptada` | `propuesta` | `reemplazada por D-nnn`) 
 |---|---|---|
 | P-01 | ~~Cambio en el back para la IP real~~ **Resuelto sin cambios en el back** (ver D-023): el back ya soporta `TRUST_PROXY_HOPS` (D-56 del back) y vale `1` en Railway. Verificar en el despliegue que la IP que ve el back es la del cliente. | Incremento 9 |
 | P-02 | ~~Hosting~~ **Resuelto por D-022 (Railway).** Verificar en el incremento 3 el límite de duración de petición del proxy de Railway. | Incremento 3 |
-| P-03 | Verificar qué devuelve `/auth/me` como `username` de un cliente. | Incremento 1 |
+| P-03 | ~~Verificar qué devuelve `/auth/me` como `username` de un cliente~~ **Resuelto (D-026):** devuelve un identificador interno; se muestra `fullName` de `GET /customers/me`. | Incremento 1 |
 | P-04 | Verificar en Railway que `request.nextUrl` (redirecciones de `proxy.ts`) use el host público y no el interno; si no, construir el origen desde `X-Forwarded-Host`/`X-Forwarded-Proto`. | Despliegue (incremento 9) |

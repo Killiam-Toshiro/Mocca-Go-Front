@@ -151,6 +151,11 @@ test.describe('registro', () => {
     await page.getByLabel('Celular').fill('3001234567');
     await page.getByRole('button', { name: 'Crear cuenta' }).click();
     await expect(page).toHaveURL(/\/cliente$/);
+    // P-03: el saludo usa el nombre real, no el identificador interno de la cuenta.
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+      'Hola, Ana Prueba',
+    );
+    await expect(page.getByText('Ana Prueba')).toHaveCount(2);
   });
 
   test('correo repetido (409): el aviso queda bajo el campo correo', async ({

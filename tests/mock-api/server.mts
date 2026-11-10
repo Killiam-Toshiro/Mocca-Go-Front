@@ -10,6 +10,7 @@
  *   - behavior.failMe hace que GET /auth/me responda 500
  *   - GET /orders/stream emite 3 fragmentos separados por behavior.streamGapMs
  */
+import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
 import type {
   IncomingHttpHeaders,
@@ -56,6 +57,11 @@ export interface MockApi {
   /** Invalida todos los tokens emitidos (simula sesión revocada o vencida en el back). */
   revokeAllSessions(): void;
   close(): Promise<void>;
+}
+
+/** Nombre de usuario interno de un cliente (17 caracteres hexadecimales, ilegible a propósito). */
+export function internalUsername(email: string): string {
+  return createHash('sha1').update(email).digest('hex').slice(0, 17);
 }
 
 const STAFF: MockUser[] = [
@@ -218,7 +224,8 @@ export async function startMockApi(
       if (customer && customer.password === password) {
         return issue(res, {
           id: customer.id,
-          username: customer.email,
+          // Como el back real: un identificador interno, no el correo ni el nombre.
+          username: internalUsername(customer.email),
           role: 'cliente',
           expiresIn: 900,
         });

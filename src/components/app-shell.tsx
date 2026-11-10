@@ -10,6 +10,7 @@ import { useSession } from '@/components/providers/session-provider';
 import { Button } from '@/components/ui/button';
 import { NAV, ROLE_LABEL } from '@/lib/auth/nav';
 import { ROLE_HOME } from '@/lib/auth/roles';
+import { useDisplayName } from '@/lib/auth/use-display-name';
 import { useLogout } from '@/lib/auth/use-logout';
 
 /** Marco de todas las pantallas con sesión: marca, navegación del rol, usuario y «Salir». */
@@ -17,6 +18,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { user } = useSession();
   const pathname = usePathname();
   const logout = useLogout();
+  const name = useDisplayName();
   const items = NAV[user.role];
 
   return (
@@ -54,7 +56,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="ml-auto flex min-w-0 items-center gap-3">
             <p className="min-w-0 text-right text-sm leading-tight">
               <span className="block max-w-40 truncate font-medium sm:max-w-64">
-                {user.username}
+                {name ?? 'Mi cuenta'}
               </span>
               <span className="block text-xs text-muted-foreground">
                 {ROLE_LABEL[user.role]}

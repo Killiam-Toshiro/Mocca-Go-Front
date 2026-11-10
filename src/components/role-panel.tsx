@@ -8,17 +8,19 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { NAV, ROLE_LABEL } from '@/lib/auth/nav';
+import { useDisplayName } from '@/lib/auth/use-display-name';
 
 /** Panel de bienvenida de cada rol. Las secciones futuras aparecen deshabilitadas. */
 export function RolePanel() {
   const { user } = useSession();
+  const name = useDisplayName();
   const upcoming = NAV[user.role].filter((item) => !item.enabled);
 
   return (
     <div className="mx-auto grid max-w-3xl gap-6">
       <div className="grid gap-1">
         <h1 className="text-2xl font-semibold tracking-tight">
-          Hola, {user.username}
+          {name ? `Hola, ${name}` : 'Hola'}
         </h1>
         <p className="text-sm text-muted-foreground">
           Ingresaste como{' '}

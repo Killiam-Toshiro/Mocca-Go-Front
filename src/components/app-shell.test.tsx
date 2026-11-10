@@ -101,9 +101,10 @@ describe('AppShell', () => {
       .click(screen.getByRole('button', { name: /Salir/ }));
 
     await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith('/login'));
-    expect((fetchMock.mock.calls[0] as unknown as [string])[0]).toBe(
-      '/api/auth/logout',
+    const urls = (fetchMock.mock.calls as unknown as [string][]).map(
+      ([url]) => url,
     );
+    expect(urls).toContain('/api/auth/logout');
   });
 
   describe('menú móvil', () => {
@@ -143,5 +144,15 @@ describe('AppShell', () => {
       await user.click(within(dialog).getByRole('link', { name: 'Inicio' }));
       expect(dialog).not.toHaveAttribute('open');
     });
+  });
+
+  it('en el encabezado, un cliente ve su nombre y no el identificador interno', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ fullName: 'Ana Pérez' })),
+    );
+    mount('cliente', 'ce7480bdcb8fe4799');
+    expect(await screen.findByText('Ana Pérez')).toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent('ce7480bdcb8fe4799');
   });
 });
