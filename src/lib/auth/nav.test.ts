@@ -23,8 +23,8 @@ describe('NAV', () => {
       const enabled = NAV[role].filter((i) => i.enabled).map((i) => i.label);
       const expected: Record<(typeof ROLES)[number], string[]> = {
         cliente: ['Inicio', 'Menú', 'Mis pedidos'],
-        operador: ['Inicio', 'Cocina'],
-        admin: ['Inicio', 'Cocina'],
+        operador: ['Inicio', 'Cocina', 'Productos', 'Inventario'],
+        admin: ['Inicio', 'Cocina', 'Inventario'],
         repartidor: ['Inicio'],
       };
       expect(enabled).toEqual(expected[role]);
@@ -39,6 +39,12 @@ describe('NAV', () => {
     expect(labels('operador')).toContain('Cocina');
     expect(labels('admin')).toContain('Cocina');
     expect(labels('cliente')).not.toContain('Cocina');
+    expect(labels('operador')).toEqual(
+      expect.arrayContaining(['Productos', 'Inventario']),
+    );
+    expect(labels('admin')).toContain('Inventario');
+    expect(labels('cliente')).not.toContain('Inventario');
+    expect(labels('repartidor')).not.toContain('Inventario');
     expect(labels('repartidor')).toContain('Mis rondas');
     expect(labels('cliente')).toContain('Mis pedidos');
   });

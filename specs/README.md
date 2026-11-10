@@ -21,7 +21,8 @@ Plantillas en `specs/_templates/`.
 | 003 | Pedido y pago (checkout, mis pedidos, detalle, cancelar) | implementado; falta tu prueba manual (T-11) y revisión |
 | 003b | Seguimiento en vivo (SSE) | implementado; falta tu prueba manual (T-09) y revisión |
 | 004 | Cocina (operador y admin) | implementado; falta tu prueba manual y revisión |
-| 004b | Operador: productos agotados e inventario | spec aprobada; plan en borrador |
+| 004b | Operador: productos agotados e inventario | implementado; falta tu prueba manual y revisión |
+| 004c | Producción del día (inventario como abasto de cocina) | implementado; falta tu prueba manual y revisión |
 | 005 | Repartidor | pendiente |
 | 006 | Cliente: encuesta y perfil | pendiente |
 | 007 | Admin: catálogo, zonas, usuarios | pendiente |

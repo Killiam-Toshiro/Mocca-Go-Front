@@ -29,6 +29,7 @@ import type {
   ServerResponse,
 } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { createInventoryStore } from './inventory.ts';
 import { buildMenu, type MockMenuItem } from './menu.ts';
 import { buildZones, createOrderStore, type OrderStatus } from './orders.ts';
 
@@ -186,8 +187,9 @@ export async function startMockApi(
   };
   resetCustomers();
 
+  const inventory = createInventoryStore(() => state.menu);
   const orderStore = createOrderStore(
-    () => state.menu,
+    () => inventory.menu(),
     () => buildZones(),
     (customerId, order) => {
       const frame = `event: order\ndata: ${JSON.stringify({
@@ -236,6 +238,7 @@ export async function startMockApi(
       state.behavior.menuStatus = 0;
       state.behavior.createOrderStatus = 0;
       state.menu = buildMenu();
+      inventory.reset();
       orderStore.reset();
       state.behavior.streamGapMs = 150;
       state.behavior.failMe = false;
@@ -409,6 +412,31 @@ export async function startMockApi(
       return send(res, 204);
     }
 
+    if (url.pathname === '/__mock/inventory/reset' && req.method === 'POST') {
+      inventory.reset();
+      return send(res, 204);
+    }
+    if (url.pathname === '/__mock/inventory' && req.method === 'POST') {
+      const change = parseJson(body);
+      const sku = change?.sku;
+      if (!text(sku)) return fail(res, 400, 'sku requerido');
+      if (typeof change?.soldOut === 'boolean')
+        inventory.setSoldOut(`prod-${sku.toLowerCase()}`, {
+          soldOut: change.soldOut,
+        });
+      if (
+        typeof change?.stock === 'number' &&
+        !inventory.setStock(sku, change.stock)
+      )
+        return fail(res, 404, 'Producto no encontrado');
+      if (
+        typeof change?.active === 'boolean' &&
+        !inventory.setActive(sku, change.active)
+      )
+        return fail(res, 404, 'Producto no encontrado');
+      return send(res, 204);
+    }
+
     const orderControl = /^\/__mock\/orders\/([^/]+)\/status$/.exec(
       url.pathname,
     );
@@ -495,7 +523,7 @@ export async function startMockApi(
         }
         if (state.behavior.menuStatus !== 0)
           return fail(res, state.behavior.menuStatus, 'Error simulado');
-        return send(res, 200, { data: state.menu });
+        return send(res, 200, { data: inventory.menu() });
       case 'GET /delivery-zones':
         return send(res, 200, { data: buildZones() });
       case 'POST /orders': {
@@ -582,6 +610,27 @@ export async function startMockApi(
         }, gap * 2);
         return;
       }
+      case 'GET /products':
+      case 'GET /movements': {
+        if (!session) return fail(res, 401, 'Unauthorized');
+        if (!isStaff(session.user.role))
+          return fail(res, 403, 'Forbidden resource');
+        const r =
+          route === 'GET /products'
+            ? inventory.listProducts(url.searchParams)
+            : inventory.listMovements(url.searchParams);
+        return send(res, r.status, r.body);
+      }
+      case 'POST /movements': {
+        if (!session) return fail(res, 401, 'Unauthorized');
+        if (!isStaff(session.user.role))
+          return fail(res, 403, 'Forbidden resource');
+        const r = inventory.createMovement(
+          { id: session.user.id, username: session.user.username },
+          parseJson(body),
+        );
+        return send(res, r.status, r.body);
+      }
       case 'GET /kitchen/orders': {
         if (!session) return fail(res, 401, 'Unauthorized');
         if (!isStaff(session.user.role))
@@ -624,6 +673,16 @@ export async function startMockApi(
         return;
       }
       default: {
+        const soldOut = /^\/products\/([^/]+)\/sold-out$/.exec(
+          url.pathname.slice(PREFIX.length),
+        );
+        if (soldOut && req.method === 'PATCH') {
+          if (!session) return fail(res, 401, 'Unauthorized');
+          if (!isStaff(session.user.role))
+            return fail(res, 403, 'Forbidden resource');
+          const r = inventory.setSoldOut(soldOut[1] ?? '', parseJson(body));
+          return send(res, r.status, r.body);
+        }
         const kitchenAction =
           /^\/kitchen\/orders\/([^/]+)\/(start|ready)$/.exec(
             url.pathname.slice(PREFIX.length),

@@ -78,6 +78,15 @@ Formato: `D-nnn` · estado (`aceptada` | `propuesta` | `reemplazada por D-nnn`) 
 | D-072 | **Historial** de 20 por página con filtros por producto y tipo, fecha en America/Bogota, tipo con texto + ícono, responsable y, si viene de un pedido, la marca «Automático» con el identificador del pedido (sin enlace: el personal aún no tiene detalle de pedido). | Plan 004b |
 | D-073 | **Rutas y navegación:** «Productos» e «Inventario» se habilitan para el operador y «Inventario» se agrega al admin. | Usuario, 2026-11-10 (spec 004b) |
 | D-074 | **Diseño:** tarjetas en 360 px y tabla en pantallas anchas, botones ≥ 48 px, solo tokens de color, sin desborde horizontal. | Usuario, 2026-11-10 (spec 004b) |
+| D-075 | **El inventario es el abasto de producción del día** (opción A, sin cambios en el back): el saldo de un producto significa «cuántos podemos entregar hoy» y se sigue moviendo con entradas y salidas. Ingredientes y recetas quedan como evolución posible (requiere el back). | Usuario, 2026-11-10 (spec 004c) |
+| D-076 | **Vocabulario:** «Saldo» → «Disponibles»; `IN` → «Producción»; `OUT` → «Merma o salida», en formulario, filas e historial. | Usuario, 2026-11-10 (spec 004c) |
+| D-077 | **Motivos sugeridos** como botones sobre el campo de motivo (siguen siendo texto libre, obligatorio, 1–300): producción «Producción del día», «Reposición»; salida «Merma», «Consumo interno», «Ajuste por conteo». | Usuario, 2026-11-10 (spec 004c) |
+| D-078 | **«Preparar el día»:** sección de «Inventario» con un campo «Para hoy» por producto simple activo (vacío = no cambiar), diferencia visible por fila y un motivo para todo el lote («Preparar el día» por defecto). | Usuario, 2026-11-10 (spec 004c) |
+| D-079 | **Aplicar en lote:** resumen previo, nueva consulta del catálogo y **un movimiento por producto, de uno en uno**; la diferencia se calcula con el saldo más reciente (el back no tiene «fijar saldo»). | Usuario, 2026-11-10 (spec 004c) |
+| D-080 | **Errores parciales sin reintento automático:** el lote continúa tras un fallo; cada fila muestra su resultado; un corte de red marca la fila como ambigua (no se reenvía hasta confirmar que se revisó el historial); los fallos definitivos (4xx) se pueden volver a aplicar. | Usuario, 2026-11-10 (spec 004c) |
+| D-081 | **Sin duplicar:** botón deshabilitado con marca síncrona mientras corre el lote y filas aplicadas limpiadas al terminar. | Usuario, 2026-11-10 (spec 004c) |
+| D-082 | **Acceso:** «Preparar el día» vive en `/operador/inventario` y `/admin/inventario` como tercera sección. | Usuario, 2026-11-10 (spec 004c) |
+| D-083 | **Límites y diseño:** «Para hoy» entero de 0 a 100 000; combos e inactivos no aparecen; tarjetas en 360 px, botones ≥ 48 px, solo tokens de color. | Usuario, 2026-11-10 (spec 004c) |
 
 ## Reemplazadas
 
