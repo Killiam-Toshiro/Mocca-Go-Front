@@ -16,5 +16,21 @@ docs/
 CLAUDE.md         # guía de trabajo para Claude
 ```
 
+## Cómo correrlo
+Requiere Node 24. Copia `.env.example` a `.env.local` y ajusta `API_URL`.
+
+Con el back real (`Mocca-Go`: `npm run db:up`, `migration:run`, `seed`, `start` en `:3000`):
+```
+API_URL=http://127.0.0.1:3000/api/v1
+```
+Sin el back, con la API simulada (usuarios y casos en la cabecera de `tests/mock-api/server.mts`):
+```
+node tests/mock-api/server.mts      # puerto 4010, en otra terminal
+API_URL=http://127.0.0.1:4010/api/v1
+```
+Después `npm run dev` y abre `http://localhost:3001` (no uses la IP de red en desarrollo).
+
+Calidad: `npm run lint`, `typecheck`, `format:check`, `test`, `api:check`, `build` + `check:bundle`, y `npm run e2e` (antes, `npx playwright install chromium`).
+
 ## Estado
-Incremento 001 (base, login/registro y rutas por rol): spec en borrador. Aún no hay código de la app.
+Incremento 001 (base, login/registro y rutas por rol): implementado, **en revisión**. Pendiente la verificación contra el back real (T-24). Ver `docs/commits/001.md`.

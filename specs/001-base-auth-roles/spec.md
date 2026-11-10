@@ -1,181 +1,249 @@
 # Spec 001 — Base, login/registro y rutas por rol
 
-**Repo:** `mocca-go-front` (nuevo) · **Fecha:** 2026-11-09 · **Estado:** borrador para aprobación
-**Contrato consumido:** `openapi.json` del back (incrementos 001–019) · **Siguiente paso tras aprobar:** `plan.md` → `tasks.md`
+**Repo:** `mocca-go-front` · **Fecha:** 2026-11-09 · **Estado:** aprobada el 2026-11-09 · v2.3 (BFF con cookie `httpOnly`; Railway; P-01 sin cambios en el back; TypeScript 5.9.3)
+**Contrato consumido:** `docs/openapi.json` (back, incrementos 001–019) · **Siguiente paso tras aprobar:** `plan.md` → `tasks.md`
+
+> **Cambio respecto a v1:** la sesión ya no vive en `sessionStorage`. Next.js actúa de intermediario (BFF): guarda el token en una cookie `httpOnly` y el navegador solo habla con `/api/...` del mismo origen. El back no cambia.
 
 ---
 
 ## 1. Objetivo
 
-Dejar listo el esqueleto del frontend y la **puerta de entrada**: que una persona pueda registrarse (cliente), iniciar sesión (cliente o personal) y llegar a un panel propio de su rol, con la sesión protegida y las rutas bloqueadas para quien no corresponde. Es la base sobre la que se montan los incrementos 2–9.
+Dejar listo el esqueleto del frontend y la **puerta de entrada**: que una persona pueda registrarse (cliente), iniciar sesión (cliente o personal) y llegar a un panel propio de su rol, con la sesión protegida en el servidor y las rutas bloqueadas para quien no corresponde. Es la base de los incrementos 2–9.
 
-## 2. Decisiones ya tomadas (para `docs/decisions.md`)
+## 2. Arquitectura de sesión (BFF)
+
+```
+Navegador ──(mismo origen, cookie httpOnly)──▶ Next.js (/api/...) ──(Bearer)──▶ Back NestJS (API_URL)
+```
+
+- El **token nunca llega al JavaScript del navegador**. Vive en una cookie `httpOnly` que solo Next lee.
+- El navegador llama a `/api/...`; Next valida la petición, añade `Authorization: Bearer <token>` y la reenvía al back.
+- Como la llamada al back es de servidor a servidor, **el front ya no necesita CORS**: no hay que añadir su dominio a `CORS_ORIGINS`.
+- Los guardas son **del servidor** (middleware + layouts de Server Components): no hay destello de pantalla equivocada.
+
+### Endpoints propios de Next (BFF)
+
+| Ruta | Método | Función |
+|---|---|---|
+| `/api/auth/login` | POST | Llama a `POST /auth/login` del back; si es 200, pone las cookies, consulta `/auth/me` y responde `{ user: {id, username, role}, expiresAt }` **sin el token**. Si el back falla, reenvía estado y mensaje. |
+| `/api/auth/logout` | POST | Llama a `POST /auth/logout` del back (mejor esfuerzo) y **siempre** borra las cookies. Responde 204. |
+| `/api/auth/session` | GET | Llama a `/auth/me` con la cookie y responde `{ user, expiresAt }`; si el back da 401, borra las cookies y responde 401. |
+| `/api/auth/expired` | GET | Borra las cookies y redirige a `/login?expired=1&next=…` (único GET con efecto; lo usan los guardas del servidor cuando detectan una sesión muerta, para evitar bucles). |
+| `/api/[...path]` | GET/POST/PATCH/PUT/DELETE | Proxy a `${API_URL}/<path>` solo para las rutas de la tabla generada del OpenAPI (ver D-016). |
+
+### Cookies (D-015)
+
+| Cookie | Contenido | Atributos |
+|---|---|---|
+| `session` (en producción `__Host-session`) | El token | `HttpOnly`, `SameSite=Lax`, `Path=/`, `Secure` en producción, `Max-Age = expiresIn` |
+| `session_exp` | Solo la hora de vencimiento (epoch ms), dato no sensible | legible por JS, `SameSite=Lax`, `Path=/`, `Secure` en producción, mismo `Max-Age` |
+
+El navegador descarta ambas cookies al vencer. `session_exp` permite al cliente programar el aviso de «sesión vencida» sin tocar el token.
+
+### Qué cambia respecto a guardar el token en el navegador
+
+- La sesión se comparte entre pestañas y sobrevive a enlaces abiertos en otra pestaña.
+- Un XSS ya no puede **robar** el token, pero **sí puede hacer peticiones** mientras la página esté abierta: la CSP y las cabeceras de seguridad siguen siendo obligatorias (CA-21).
+- Con cookies existe **CSRF**: se mitiga con `SameSite=Lax`, verificación de `Origin` y exigencia de `Content-Type: application/json` (D-017).
+- El proxy es **código de seguridad**: solo reenvía rutas conocidas, no es un proxy abierto (D-016).
+- Los límites por IP del back verían la IP del servidor de Next: Next reenvía la IP real del cliente en `X-Forwarded-For` y el back ya la acepta con `TRUST_PROXY_HOPS=1` (D-023, P-01).
+
+## 3. Decisiones
+
+### Ya tomadas
 
 | ID | Decisión | Origen |
 |---|---|---|
-| D-001 | Solo web responsive (sin panel de escritorio aparte) | Respuesta del usuario |
-| D-002 | Tailwind + shadcn/ui | Respuesta del usuario |
-| D-003 | Despliegue en Vercel (incremento 9); el dominio se añade a `CORS_ORIGINS` del back | Respuesta del usuario |
-| D-004 | Token en `sessionStorage` | Respuesta del usuario |
-| D-005 | Next.js App Router, TypeScript estricto, npm (igual que el back), Node 24 | Handoff §10 + coherencia con el back |
-| D-006 | Cliente tipado con `openapi-typescript` + `openapi-fetch`; consultas con TanStack Query | Handoff §4 y §10 |
+| D-001 | Solo web responsive (sin panel de escritorio aparte) | Usuario |
+| D-002 | Tailwind + shadcn/ui | Usuario |
+| D-003 | ~~Despliegue en Vercel~~ **reemplazada por D-022** | Usuario |
+| D-004 | ~~Token en `sessionStorage`~~ **reemplazada por D-014** | Usuario |
+| D-005 | Next.js App Router, TypeScript estricto, npm, Node 24 | Handoff §10 |
+| D-006 | Cliente tipado con `openapi-typescript` + `openapi-fetch`; TanStack Query | Handoff §4 y §10 |
+| D-014 | Sesión en cookie `httpOnly` emitida por Next (BFF); el navegador solo usa `/api/...` del mismo origen | Usuario, 2026-11-09 |
+| D-022 | Despliegue del front en **Railway** como contenedor Node persistente (`next build` + `next start`), con el back en la misma plataforma y `API_URL` apuntando a su red privada. Motivo: los canales SSE pasan por el proxy y necesitan conexiones largas sin cortes por duración de función. | Usuario, 2026-11-09 |
 
-### Consecuencias de D-004 que condicionan el diseño
-
-- El token vive solo en el navegador, así que **Next no puede proteger rutas en el servidor** (`middleware.ts` no ve la sesión). Los guardas son **del lado del cliente** y sirven para UX; la seguridad real la impone el back (401/403).
-- Todas las páginas privadas son *client components* con TanStack Query; no se hace `fetch` autenticado desde Server Components.
-- `sessionStorage` es por pestaña: abrir un enlace en pestaña nueva no hereda la sesión. Es un costo aceptado.
-- Riesgo: un XSS podría leer el token. Mitigación en este incremento: sin `dangerouslySetInnerHTML`, el token nunca va en URLs ni logs, y solo se envía al origen de `NEXT_PUBLIC_API_URL`.
-
-## 3. Alcance
-
-**Entra**
-1. Repo y tooling: Next.js, TS estricto, Tailwind, shadcn/ui, ESLint, Prettier, Vitest + Testing Library, Playwright (con la API simulada).
-2. Configuración por entorno (`NEXT_PUBLIC_API_URL`) validada al arrancar.
-3. Cliente de API tipado generado desde `docs/openapi.json`, con manejo uniforme de errores.
-4. Módulo de sesión: guardar, restaurar, expirar y cerrar.
-5. Pantallas `/login` y `/registro`.
-6. Guardas por rol y panel inicial (placeholder) de cada rol, con *shell* responsive.
-
-**No entra** (queda para otros incrementos)
-- Menú, carrito, pedidos, SSE, cocina, despacho, encuestas, catálogo, métricas.
-- Cambio de contraseña (`PATCH /auth/password`) y perfil (`/customers/me` editable): incremento 6.
-- Diseño visual definitivo (logo, paleta de marca). Se usa un tema neutro con tokens de color reemplazables.
-- Despliegue (incremento 9).
-
-## 4. Contrato consumido en este incremento
-
-| Operación | Cuerpo / respuesta relevante | Errores a manejar |
-|---|---|---|
-| `POST /auth/login` | Cuerpo: `password` (12–128) y **exactamente uno** de `username` (`^[a-z0-9][a-z0-9._-]{2,63}$`) o `email` (≤254). Respuesta: `{ accessToken, tokenType:"Bearer", expiresIn }` (segundos). **No trae el rol.** | 400 validación (`message` puede ser arreglo) · 401 credenciales inválidas **o cuenta bloqueada** (5 fallos = 15 min) · 429 (20/min por IP) |
-| `GET /auth/me` | `{ id, username, role }` con `role ∈ admin, operador, repartidor, cliente` | 401 |
-| `POST /auth/logout` | 204; revoca la sesión | 401 (ya revocada) |
-| `POST /customers` | Cuerpo: `email` (≤254), `password` (12–128), `fullName` (2–100), `phone` (celular colombiano o `+…`; el back lo guarda en E.164). 201 → `CustomerResponse`. **No inicia sesión.** | 400 · 409 correo ya registrado · 429 (5/min por IP) |
-| `GET /customers/me` | `{ id, email, fullName, phone, … }` (solo cliente) | 401 · 403 · 404 |
-
-Formato de error: `{ statusCode, message: string | string[], error? }`, con mensajes en español que se pueden mostrar.
-
-### Hallazgos al cruzar el handoff con el OpenAPI
-
-1. **Los paths del OpenAPI incluyen `/api/v1`** y `servers` viene vacío, mientras que `NEXT_PUBLIC_API_URL` ya termina en `/api/v1`. Hay que quitar el prefijo al generar los tipos (ver D-007) para no duplicarlo.
-2. **`/auth/me` solo devuelve `id`, `username`, `role`.** No hay nombre completo; para saludar a un cliente por su nombre hay que pedir `GET /customers/me`.
-3. **El 401 de login no distingue cuenta bloqueada de contraseña errónea**; se muestra el `message` del servidor tal cual.
-4. **Un 403 en `PATCH /auth/password` significa «contraseña actual incorrecta»**, no «sin permiso». El manejador global no debe tratar todo 403 como falta de rol (relevante para el incremento 6).
-5. **TTL del token:** el OpenAPI dice 15 min y el handoff dice 8 h por defecto (`ACCESS_TOKEN_TTL_SECONDS`). Se usa siempre `expiresIn` de la respuesta, nunca un valor fijo.
-6. Para el incremento 3: el handoff dice `POST /orders` 10/min por IP y el OpenAPI 20/min. Confirmar con el back.
-
-## 5. Decisiones de diseño propuestas (requieren tu visto bueno)
+### Aprobadas el 2026-11-09 (D-007 a D-013 y D-015 a D-025)
 
 | ID | Propuesta | Alternativa |
 |---|---|---|
-| D-007 | Script `npm run api:types` que copia/limpia `docs/openapi.json` (quita `/api/v1` de cada path) y genera `src/lib/api/schema.d.ts`, que se versiona. | Usar `/api/v1` en el `baseUrl` y dejar los paths completos (obliga a que `NEXT_PUBLIC_API_URL` sea solo el origen, distinto de lo que dice el handoff). |
-| D-008 | Un único campo «Usuario o correo»: si contiene `@` se envía `email`, si no `username` (el patrón de username no admite `@`, así que no hay ambigüedad). | Dos pestañas «Soy cliente / Soy personal». |
-| D-009 | Tras `POST /customers` exitoso se inicia sesión automáticamente con las mismas credenciales. Si ese login falla, se lleva a `/login` con aviso «Cuenta creada, inicia sesión». | Redirigir siempre a `/login`. |
-| D-010 | El rol se obtiene con `GET /auth/me` después del login (no se decodifica el JWT en el front). | Leer el rol del JWT: se evita una llamada, pero se confía en un dato sin verificar. |
-| D-011 | Rutas por rol bajo prefijo: `/cliente`, `/operador`, `/repartidor`, `/admin`. Un rol que entra a un prefijo ajeno es **redirigido a su home** (sin pantalla 403). `/`, `/login` y `/registro` son públicas. | Pantalla «Sin acceso». |
-| D-012 | En este incremento `admin` solo accede a `/admin`. Si cocina y despacho de consulta se reutilizan para admin se decide en los incrementos 4 y 5 (probablemente bajo `/admin/…`). | Dar a `admin` acceso a todos los prefijos desde ya. |
-| D-013 | Puerto de desarrollo `3001` (así coincide con el `CORS_ORIGINS` local del back). | — |
+| D-007 | `npm run api:types` quita `/api/v1` de los paths de `docs/openapi.json` y genera `src/lib/api/schema.d.ts` (tipos) **y** `src/lib/api/routes.generated.ts` (tabla de rutas del proxy). El cliente usa `baseUrl: "/api"`. | Escribir la tabla de rutas a mano. |
+| D-008 | Un único campo «Usuario o correo»: con `@` se envía `email`, si no `username`. | Dos pestañas cliente / personal. |
+| D-009 | Tras registrarse se inicia sesión automáticamente. Si falla, va a `/login` con aviso. | Redirigir siempre a `/login`. |
+| D-010 | El rol se obtiene de `GET /auth/me` (lo hace el BFF), no del JWT. | Leer el rol del JWT. |
+| D-011 | Rutas por prefijo de rol; el rol equivocado se redirige a su home. | Pantalla «Sin acceso». |
+| D-012 | `admin` solo accede a `/admin` en este incremento; cocina/despacho de consulta se deciden en los incrementos 4 y 5. | Acceso a todos los prefijos. |
+| D-013 | Puerto de desarrollo `3001`. | — |
+| D-015 | Cookies `session` + `session_exp` con los atributos de la tabla anterior. | Una sola cookie y decodificar el `exp` del JWT en el servidor. |
+| D-016 | El proxy solo reenvía `método + ruta` presentes en `routes.generated.ts`, normaliza la ruta (rechaza `..`, `%2f`, `//`), usa un host fijo (`API_URL`), pasa solo cabeceras permitidas (`Content-Type`, `Accept`, `Idempotency-Key`) y añade un `X-Forwarded-For` calculado por el servidor (D-023), nunca copiado del cliente; **no** reenvía la cookie al back y devuelve el cuerpo como flujo (sin almacenarlo). `login` y `logout` del back quedan fuera del proxy. | Denylist de rutas. |
+| D-017 | Métodos no seguros (POST/PATCH/PUT/DELETE) exigen `Origin` presente cuyo host coincida con el del servidor (`X-Forwarded-Host` o `Host`, más `ALLOWED_ORIGINS` opcional) y `Content-Type: application/json` si hay cuerpo. | Token CSRF doble envío. |
+| D-018 | Guardas en dos capas: **middleware** (si no hay cookie `session` en un prefijo privado → `/login?next=…`) y **layouts de Server Components** (validan con `/auth/me`, comprueban el rol y pasan el usuario a un `SessionProvider` cliente). | Solo layouts. |
+| D-019 | Variable de servidor `API_URL` (con `/api/v1`, p. ej. `http://localhost:3000/api/v1`) reemplaza a `NEXT_PUBLIC_API_URL`. No se expone al navegador. En Railway apunta a la **red privada** del servicio `api` (`http://<servicio>.railway.internal:<puerto>/api/v1`), no al dominio público, para que la IP del cliente llegue al back. | — |
+| D-020 | Las pruebas E2E y de integración usan un **servidor mock de la API** en Node (`tests/mock-api`) al que apunta `API_URL`, porque las llamadas de Next al back no se pueden interceptar con `page.route`. | MSW en modo Node. |
+| D-023 | **IP real hacia el back sin cambiar el back:** variable de servidor `TRUST_PROXY_HOPS` (0 en local, 1 en Railway; mismo criterio que el back). Con n > 0, el proxy de API toma la IP del cliente de `X-Forwarded-For` contando n entradas desde la derecha (con 1, la última, que añade el borde de Railway; las anteriores las puede falsear el cliente), la valida como IP y la envía al back **sustituyendo** cualquier `X-Forwarded-For` entrante. Con 0 no envía la cabecera. | Copiar la cabecera tal cual (falseable). |
+| D-024 | `COOKIE_SECURE` (opcional) fuerza `Secure` y el prefijo `__Host-`; por defecto `true` si `NODE_ENV=production`. Permite correr un build de producción en `http://localhost` para E2E. | Depender solo de `NODE_ENV`. |
+| D-025 | TypeScript fijado en 5.9.3: `typescript-eslint` 8.72 solo admite `<6.1` y `openapi-typescript` 7.13 declara `typescript@^5.x` (ajustado en T-01; la propuesta inicial decía 6.0.x). | Usar TypeScript 6 o 7 con `--legacy-peer-deps`. |
+
+### Pendientes abiertos
+
+| ID | Pendiente | Cuándo se resuelve |
+|---|---|---|
+| P-01 | **Back:** reenviar la IP real. Next enviará `X-Forwarded-For` con la IP del cliente y el back debe configurar `trust proxy` confiando solo en ese salto; si no, todos los usuarios compartirían los límites por IP (login 20/min, registro 5/min, pedidos, SSE). Con el back en la red privada de Railway, confiar en un solo salto es seguro; si el back siguiera público, alguien podría falsear la IP y saltarse los límites (habría que cerrarlo o firmar el reenvío con un secreto compartido). | Antes del despliegue (inc. 9); en local no afecta |
+| P-02 | ~~Hosting: Vercel o Railway~~ **Resuelto: Railway (D-022).** Queda por verificar en el incremento 3 el límite de duración de petición del proxy de Railway; el protocolo reconecta igualmente con `ready`. | Incremento 3 |
+| P-03 | Confirmar qué devuelve `/auth/me` como `username` para un cliente (decide cómo se muestra su nombre). | Verificación manual del inc. 1 |
+
+## 4. Alcance
+
+**Entra**
+1. Repo y tooling: Next.js, TS estricto, Tailwind, shadcn/ui, ESLint, Prettier, Vitest + Testing Library, Playwright con servidor mock.
+2. Configuración por entorno (`API_URL`) validada al arrancar en el servidor.
+3. Cliente de API tipado y tabla de rutas generados desde `docs/openapi.json`.
+4. BFF: endpoints de sesión, proxy, cookies, verificación de `Origin`.
+5. Guardas por rol (middleware + layouts) y panel inicial (placeholder) de cada rol, con *shell* responsive.
+6. Pantallas `/login` y `/registro`.
+7. Cabeceras de seguridad y CSP con nonce.
+
+**No entra**
+- Menú, carrito, pedidos, SSE, cocina, despacho, encuestas, catálogo, métricas. (El proxy se diseña para pasar flujos, pero el SSE se implementa y prueba en el incremento 3.)
+- Cambio de contraseña (`PATCH /auth/password`) y perfil editable: incremento 6.
+- Identidad visual definitiva (se usa tema neutro con tokens reemplazables) y despliegue.
+
+## 5. Contrato consumido en este incremento
+
+| Operación del back | Cuerpo / respuesta relevante | Errores a manejar |
+|---|---|---|
+| `POST /auth/login` | Cuerpo: `password` (12–128) y **exactamente uno** de `username` (`^[a-z0-9][a-z0-9._-]{2,63}$`) o `email` (≤254). Respuesta: `{ accessToken, tokenType:"Bearer", expiresIn }` (segundos). **No trae el rol.** | 400 (`message` puede ser arreglo) · 401 credenciales inválidas **o cuenta bloqueada** (5 fallos = 15 min) · 429 (20/min por IP) |
+| `GET /auth/me` | `{ id, username, role }`, `role ∈ admin, operador, repartidor, cliente` | 401 |
+| `POST /auth/logout` | 204; revoca la sesión | 401 |
+| `POST /customers` | Cuerpo: `email` (≤254), `password` (12–128), `fullName` (2–100), `phone` (celular colombiano o `+…`; el back guarda E.164). 201 → `CustomerResponse`. **No inicia sesión.** Pública (el proxy no exige cookie). | 400 · 409 correo ya registrado · 429 (5/min por IP) |
+| `GET /customers/me` | `{ id, email, fullName, phone, … }` (solo cliente) | 401 · 403 · 404 |
+
+Formato de error del back: `{ statusCode, message: string | string[], error? }`, en español. Los errores propios del BFF (502 sin conexión con el back, 504 tiempo agotado, 401 sin cookie, 403 `Origin` inválido, 415 tipo de contenido, 404 ruta fuera de la tabla) usan **el mismo formato**.
+
+### Hallazgos al cruzar el handoff con el OpenAPI
+
+1. Los paths del OpenAPI incluyen `/api/v1` y `servers` viene vacío. Se quita el prefijo al generar (D-007) y `API_URL` ya lo lleva; el navegador usa `/api`.
+2. `/auth/me` solo devuelve `id`, `username`, `role`: para el nombre completo de un cliente hay que pedir `GET /customers/me`.
+3. El 401 de login no distingue cuenta bloqueada de contraseña errónea; se muestra el `message` del servidor.
+4. Un 403 en `PATCH /auth/password` significa «contraseña actual incorrecta», **no** falta de permiso: ni el proxy ni el cliente deben tratar todo 403 como cierre de sesión (relevante en el incremento 6).
+5. TTL: el OpenAPI dice 15 min y el handoff 8 h por defecto. Se usa siempre `expiresIn`.
+6. Para el incremento 3: el handoff dice `POST /orders` 10/min por IP y el OpenAPI 20/min. Confirmar con el back.
+7. Con BFF, el handoff §4 sobre `CORS_ORIGINS` deja de aplicar al front (el back solo lo necesita para Swagger u otros orígenes).
+8. El CORS del back solo permite las cabeceras `Authorization` y `Content-Type`; **no incluye `Idempotency-Key`**, así que `POST /orders` llamado directo desde el navegador fallaría en el preflight. El BFF lo evita porque la llamada es de servidor a servidor.
+9. El back **ya soporta proxies de confianza** (`TRUST_PROXY_HOPS`, D-56 del back; vale `1` en Railway) y su limitador usa la IP de Express (`req.ip`). P-01 no requiere cambios en el back: basta con que Next envíe `X-Forwarded-For` con la IP real y llame por la red privada (D-023).
 
 ## 6. Rutas y guardas
 
 | Ruta | Acceso | Contenido en este incremento |
 |---|---|---|
-| `/` | Público | Portada mínima con enlaces a login y registro; si hay sesión, botón «Ir a mi panel». En el incremento 2 pasa a ser el menú. |
-| `/login` | Solo sin sesión (con sesión → home del rol) | Formulario de login |
-| `/registro` | Solo sin sesión (con sesión → home del rol) | Formulario de registro de cliente |
-| `/cliente` | `cliente` | Panel placeholder |
-| `/operador` | `operador` | Panel placeholder |
-| `/repartidor` | `repartidor` | Panel placeholder |
-| `/admin` | `admin` | Panel placeholder |
+| `/` | Público | Portada mínima con enlaces a login y registro; con sesión, botón «Ir a mi panel». En el incremento 2 pasa a ser el menú. |
+| `/login`, `/registro` | Solo sin sesión válida (con sesión → home del rol) | Formularios |
+| `/cliente`, `/operador`, `/repartidor`, `/admin` | Su rol | Panel placeholder (saludo, rol y secciones futuras deshabilitadas) |
 
-Home por rol: `cliente → /cliente`, `operador → /operador`, `repartidor → /repartidor`, `admin → /admin`. La matriz rol → prefijos permitidos vive en un solo módulo (`lib/auth/roles.ts`) para que los incrementos siguientes solo la extiendan.
+Home por rol: `cliente → /cliente`, `operador → /operador`, `repartidor → /repartidor`, `admin → /admin`. La matriz rol → prefijos vive en `lib/auth/roles.ts`.
 
-Los paneles placeholder muestran saludo, rol y la lista de secciones que llegan después (deshabilitadas), para validar el *shell* y la navegación por rol.
+**Flujo de un guarda:** middleware (¿hay cookie `session`? si no → `/login?next=<ruta>`) → layout del servidor (`getSession()` con `/auth/me`; 401 → `/api/auth/expired?next=…`; rol equivocado → home propio) → `SessionProvider` entrega el usuario a los componentes cliente.
 
 ## 7. Comportamiento de la sesión
 
-- **Guardado:** `{ accessToken, expiresAt }` en `sessionStorage` (`expiresAt = ahora + expiresIn`). La identidad (`id`, `username`, `role`) se mantiene en estado de la app, no se persiste.
-- **Arranque / recarga:** si hay token y no ha vencido → `GET /auth/me`; mientras responde se muestra un *skeleton* (nunca un destello de la pantalla equivocada). Si responde 401 → se limpia la sesión.
-- **Expiración:** un temporizador a `expiresAt` cierra la sesión y lleva a `/login?expired=1` con el mensaje «Tu sesión venció. Inicia sesión de nuevo.». No hay refresh en el back.
-- **401 en cualquier petición privada** (excepto `/auth/login`): limpiar sesión y caché de consultas y redirigir como en la expiración.
-- **Logout:** `POST /auth/logout`; pase lo que pase (incluso error de red o 401) se borra el token local, se vacía la caché y se va a `/login`.
-- **`next`:** al ser expulsado de una ruta privada se envía a `/login?next=<ruta>`. Tras el login solo se respeta si es una ruta interna (empieza con `/`, no con `//`, sin esquema) **y** el rol puede entrar; si no, va al home del rol.
-- **Autorización a la API:** `Authorization: Bearer <token>` solo hacia el origen configurado.
+- **Login:** el formulario llama a `POST /api/auth/login`; el servidor fija las cookies y responde `{ user, expiresAt }`. El cliente redirige al home del rol (o a `next` si es válido).
+- **Recarga:** la cookie persiste; el layout del servidor valida con `/auth/me` antes de renderizar.
+- **Expiración:** la cookie caduca sola (`Max-Age = expiresIn`). Un temporizador cliente lee `session_exp` y, al vencer, limpia la caché de consultas y lleva a `/login?expired=1` con «Tu sesión venció. Inicia sesión de nuevo.». No hay refresh en el back.
+- **401 del back en ruta privada:** el proxy borra las cookies y reenvía el 401; el cliente limpia la caché y va a `/login?expired=1&next=…`. Un 401 de `/api/auth/login` (credenciales malas) **no** dispara este flujo.
+- **Logout:** `POST /api/auth/logout`; pase lo que pase se borran las cookies y la caché y se va a `/login`.
+- **`next`:** solo se respeta si es una ruta interna (empieza con `/`, no con `//`, sin esquema ni `\`) **y** el rol puede entrar; si no, home del rol.
 
 ## 8. Formularios
 
-**Login**: campo «Usuario o correo», contraseña (con mostrar/ocultar), botón «Ingresar» (deshabilitado y con estado de carga mientras envía), enlace a registro. Cliente-side: campos requeridos, contraseña 12–128, correo con formato si lleva `@`.
+**Login:** «Usuario o correo» (`autocomplete="username"`), contraseña con mostrar/ocultar (`autocomplete="current-password"`), «Ingresar» con estado de carga, enlace a registro.
 
-**Registro**: correo, contraseña (12–128, con mostrar/ocultar), nombre completo (2–100), teléfono. El teléfono solo se valida como no vacío y con forma razonable (dígitos, espacios, `+`); la normalización a E.164 y la validación real son del back, cuyo mensaje se muestra.
+**Registro:** correo (`email`), contraseña 12–128 (`new-password`), nombre completo 2–100 (`name`), teléfono (`tel`; solo se valida no vacío y forma razonable, la validación real es del back).
 
-**Errores del servidor:** `message` como arreglo → lista dentro de una alerta del formulario; 409 en registro → mensaje bajo el campo correo; 429 → «Demasiados intentos, espera un momento e inténtalo de nuevo»; falla de red → «No pudimos conectar con el servidor».
+**Errores del servidor:** `message` como arreglo → lista en una alerta; 409 en registro → bajo el campo correo; 429 → «Demasiados intentos, espera un momento e inténtalo de nuevo»; 502/504 → «No pudimos conectar con el servidor». Validación con `react-hook-form` + `zod`, mensajes en español (`es-CO`).
 
-Validación con `react-hook-form` + `zod`, mensajes en español. Idioma de la interfaz: `es-CO`.
+## 9. Seguridad (transversal)
 
-## 9. Criterios de aceptación
+- **Cabeceras en todas las respuestas de página:** `Content-Security-Policy` con nonce por petición (`default-src 'self'`, `script-src 'self' 'nonce-…' 'strict-dynamic'`, `connect-src 'self'`, `object-src 'none'`, `base-uri 'none'`, `form-action 'self'`, `frame-ancestors 'none'`), `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY`, `Permissions-Policy` restrictiva y `Strict-Transport-Security` en producción. Como todo va por el mismo origen, `connect-src` no necesita el dominio del back.
+- **Respuestas privadas:** `Cache-Control: no-store`.
+- **Secretos:** nada sensible en variables `NEXT_PUBLIC_*`; el servidor no registra cuerpos de login/registro, contraseñas ni tokens.
+- **Dependencias:** `package-lock.json` versionado, instalación con `npm ci`, `npm audit` sin vulnerabilidades altas/críticas y Dependabot activo; el código de shadcn se revisa al incorporarlo.
+- **Sin `dangerouslySetInnerHTML`** ni scripts de terceros.
+
+## 10. Criterios de aceptación
 
 | ID | Criterio |
 |---|---|
-| CA-01 | `npm run dev` levanta en `:3001` y muestra la portada; `npm run lint`, `typecheck`, `test` y `build` terminan sin errores. |
-| CA-02 | Si `NEXT_PUBLIC_API_URL` falta o no es una URL válida, la app falla al iniciar con un mensaje que nombra la variable. Existe `.env.example`. |
-| CA-03 | `npm run api:types` genera `schema.d.ts` desde `docs/openapi.json` con paths sin `/api/v1`; el cliente tipado compila contra él. |
-| CA-04 | Login con `username` + contraseña válidos guarda la sesión, consulta `/auth/me` y redirige al home del rol (`operador → /operador`, `repartidor → /repartidor`, `admin → /admin`). |
-| CA-05 | Login con correo (texto con `@`) envía `email`, no `username`, y lleva a `/cliente`. |
-| CA-06 | Login con 400 (arreglo de mensajes), 401, 429 y fallo de red muestra el mensaje correspondiente sin perder lo escrito en el campo usuario. |
-| CA-07 | Registro válido: `POST /customers` → login automático → `/cliente`. Si el login automático falla, va a `/login` con aviso de cuenta creada. |
-| CA-08 | Registro con correo repetido (409), 400 y 429 muestra el mensaje del servidor donde corresponde y conserva los datos del formulario (no la contraseña). |
-| CA-09 | Con datos inválidos (correo mal formado, contraseña <12 o >128, nombre <2 o >100, teléfono vacío) no se envía ninguna petición y se muestran mensajes por campo. |
-| CA-10 | Al recargar con sesión vigente se restaura la sesión vía `/auth/me` sin pasar por login; si `/auth/me` da 401, se limpia y se va a `/login`. |
-| CA-11 | Al vencer `expiresAt` se cierra la sesión y se muestra `/login?expired=1` con el aviso; un token ya vencido al cargar se descarta sin llamar a la API. |
-| CA-12 | Sin sesión, una ruta privada redirige a `/login?next=…`. Con sesión de otro rol redirige al home propio. Con sesión, `/login` y `/registro` redirigen al home. |
-| CA-13 | `next` con valores externos o malformados (`https://…`, `//…`, `javascript:…`, ruta de otro rol) se ignora y se usa el home del rol. |
-| CA-14 | Un 401 en cualquier petición privada limpia sesión y caché y redirige con el aviso de sesión vencida; un 401 de `/auth/login` **no** dispara ese flujo. |
-| CA-15 | Logout llama a `POST /auth/logout`, borra token y caché y lleva a `/login`; si la llamada falla igual se cierra localmente. |
-| CA-16 | El *shell* muestra marca, nombre/rol y botón «Salir»; la navegación lista solo secciones del rol; es usable desde 360 px (menú en panel lateral) hasta escritorio. |
-| CA-17 | Accesibilidad básica: etiquetas asociadas, foco visible, errores anunciados (`aria-live`), formularios operables solo con teclado, contraste AA en tema por defecto. |
-| CA-18 | El token no aparece en URLs, `console` ni mensajes de error, y no se envía a orígenes distintos de `NEXT_PUBLIC_API_URL`. |
-| CA-19 | Pruebas: unitarias (almacén de sesión, matriz de roles, `next` seguro, mapeo de errores), de componente (login, registro, guardas) y E2E con Playwright contra la API simulada (login de cada rol, registro, rol equivocado, expiración). |
+| CA-01 | `npm run dev` levanta en `:3001` y muestra la portada; `lint`, `typecheck`, `test` y `build` terminan sin errores. |
+| CA-02 | Si `API_URL` falta o no es una URL válida, el servidor falla al iniciar con un mensaje que nombra la variable. Existe `.env.example`. `TRUST_PROXY_HOPS` (entero 0–10, por defecto 0) y `COOKIE_SECURE` se validan igual. `API_URL` no aparece en ningún archivo servido al navegador. |
+| CA-03 | `npm run api:types` genera `schema.d.ts` y `routes.generated.ts` (método, patrón y si es pública) desde `docs/openapi.json`, con paths sin `/api/v1`; el cliente usa `baseUrl: "/api"` y compila. |
+| CA-04 | Login con `username` válido fija las cookies, responde `{ user, expiresAt }` sin el token y redirige al home del rol (`operador → /operador`, `repartidor → /repartidor`, `admin → /admin`). |
+| CA-05 | Atributos de cookies: `session` es `HttpOnly`, `SameSite=Lax`, `Path=/`, con `Max-Age = expiresIn` y `Secure` en producción; `document.cookie` no contiene el token; el token no aparece en ninguna respuesta enviada al navegador. |
+| CA-06 | Login con correo (texto con `@`) envía `email`, no `username`, y lleva a `/cliente`. |
+| CA-07 | Login con 400 (arreglo de mensajes), 401, 429, 502/504 muestra el mensaje correspondiente sin perder lo escrito en el campo usuario. |
+| CA-08 | Registro válido: `POST /customers` por el proxy (sin cookie) → login automático → `/cliente`. Si el login automático falla, va a `/login` con aviso de cuenta creada. |
+| CA-09 | Registro con correo repetido (409), 400 y 429 muestra el mensaje del servidor donde corresponde y conserva los datos (no la contraseña). |
+| CA-10 | Con datos inválidos (correo mal formado, contraseña <12 o >128, nombre <2 o >100, teléfono vacío) no se envía petición y se muestran mensajes por campo. |
+| CA-11 | Al recargar con sesión vigente, la página se renderiza ya autenticada (sin destello ni pasar por login); el layout valida con `/auth/me`. |
+| CA-12 | Al vencer la sesión el navegador descarta las cookies y el cliente muestra `/login?expired=1` con el aviso; una petición posterior sin cookie recibe 401 del proxy y lleva al mismo flujo. |
+| CA-13 | Guardas: sin cookie, ruta privada → `/login?next=…` (middleware); rol equivocado → home propio; cookie con sesión muerta (back responde 401) → `/api/auth/expired` borra cookies → `/login?expired=1` **sin bucle**; con sesión válida, `/login` y `/registro` → home. |
+| CA-14 | `next` externo o malformado (`https://…`, `//…`, `javascript:…`, con `\`, ruta de otro rol) se ignora y se usa el home del rol. |
+| CA-15 | Proxy: una ruta o método fuera de `routes.generated.ts` → 404; rutas con `..`, `%2f` o `//` → rechazadas; ruta privada sin cookie → 401 local sin llamar al back; añade `Authorization` desde la cookie y **no** reenvía la cookie; pasa solo las cabeceras permitidas; reenvía estado y mensaje del back; un 401 del back en ruta privada borra las cookies; fallo de conexión → 502 y tiempo agotado → 504 en el formato de error estándar. |
+| CA-16 | CSRF: POST/PATCH/PUT/DELETE sin `Origin` o con `Origin` de otro host → 403; cuerpo con `Content-Type` distinto de `application/json` → 415; ningún GET modifica datos (la única excepción es `/api/auth/expired`, que solo borra cookies). |
+| CA-17 | Logout llama a `POST /auth/logout` del back, borra cookies y caché y lleva a `/login`; si la llamada al back falla, igual se borran las cookies; el token revocado da 401 en el back. |
+| CA-18 | El proxy devuelve el cuerpo del back como flujo (no lo acumula): se comprueba con un mock que emite fragmentos con retraso. (Base del SSE del incremento 3.) |
+| CA-19 | El *shell* muestra marca, nombre/rol y «Salir»; la navegación lista solo secciones del rol; es usable desde 360 px (menú en panel lateral) hasta escritorio. |
+| CA-20 | Accesibilidad: etiquetas asociadas, `autocomplete` correctos, foco visible, errores anunciados (`aria-live`), formularios operables con teclado, contraste AA. |
+| CA-21 | Todas las páginas responden con las cabeceras de la §9 y un nonce distinto por petición; en E2E no hay violaciones de CSP en consola. |
+| CA-22 | El token no aparece en URLs, consola, HTML ni logs del servidor; los logs no incluyen cuerpos de login/registro; `npm audit` sin altas/críticas; `package-lock.json` versionado y Dependabot configurado. |
+| CA-23 | Pruebas: unitarias (matcher de rutas, normalización de ruta, verificación de `Origin`, constructores de cookies, `next` seguro, mapeo de errores), de componente (formularios, `SessionProvider`), de integración de route handlers contra el mock y E2E con Playwright contra `tests/mock-api` (login de cada rol, registro, rol equivocado, expiración, sesión muerta sin bucle, CSRF 403). |
+| CA-24 | IP real: con `TRUST_PROXY_HOPS=1` el proxy de API envía al back `X-Forwarded-For` con la última IP válida de la cabecera entrante, **sustituyendo** la del cliente; con una cabecera entrante falsificada (`1.2.3.4, 9.9.9.9`) el back recibe solo `9.9.9.9`; con `0`, o sin cabecera, o con un valor que no es IP, no se envía. Se prueba contra el mock. |
 
-## 10. Verificación contra el back real
+## 11. Verificación contra el back real
 
-Con el back local (`npm run db:up`, `migration:run`, `seed`, `start:dev` en `:3000` y `CORS_ORIGINS` con `http://localhost:3001`):
+Con el back local (`db:up`, `migration:run`, `seed`, `start:dev` en `:3000`) y `API_URL=http://localhost:3000/api/v1`:
 
-1. Login como `admin`, `operador` y `repartidor` (contraseñas de `SEED_*` del `.env` del back) → cada uno aterriza en su panel.
-2. Registrar un cliente (`300 765 4322`) → entra a `/cliente`.
-3. Confirmar qué devuelve `/auth/me` como `username` para un cliente (decide cómo se muestra su nombre en el *shell*).
-4. Cerrar sesión y comprobar que el mismo token devuelve 401 en el back.
+1. Login como `admin`, `operador` y `repartidor` (contraseñas `SEED_*` del `.env` del back): cada uno aterriza en su panel. En DevTools, las cookies aparecen `HttpOnly` y `document.cookie` no muestra el token.
+2. Registrar un cliente (`300 765 4322`): entra a `/cliente`.
+3. Cerrar sesión y comprobar que el mismo token da 401 directo contra el back.
+4. Con una cookie manipulada o borrada a mano: no hay bucle y se llega a `/login`.
+5. Resolver P-03 (valor de `username` de un cliente en `/auth/me`).
 
 La evidencia (comandos y salidas) va en `docs/commits/001.md`.
 
-## 11. Estructura propuesta del repo
+## 12. Estructura propuesta del repo
 
 ```
 src/
+  proxy.ts                      # guardas + CSP con nonce (Next 16; antes middleware.ts)
   app/
-    (public)/        # /, /login, /registro
-    (private)/
-      cliente/ operador/ repartidor/ admin/
-  components/
-    ui/              # shadcn
-    layout/          # AppShell, nav por rol
-  features/auth/     # formularios, hooks, guardas
+    (public)/                   # /, /login, /registro
+    (private)/cliente|operador|repartidor|admin/   # layouts con getSession()
+    api/
+      auth/{login,logout,session,expired}/route.ts
+      [...path]/route.ts        # proxy
+  components/{ui,layout}/
+  features/auth/                # formularios, SessionProvider, hooks
   lib/
-    api/             # cliente, schema.d.ts, ApiError
-    auth/            # session, roles, safe-next
-    env.ts
-docs/                # openapi.json, decisions.md, commits/
-specs/001-base-auth-roles/   # spec.md, plan.md, tasks.md
+    api/                        # cliente, schema.d.ts, routes.generated.ts, ApiError
+    auth/                       # roles, safe-next
+    server/                     # (server-only) env, session, proxy, origin, cookies
+docs/ (openapi.json, decisions.md, commits/)
+specs/001-base-auth-roles/ (spec.md, plan.md, tasks.md)
 scripts/gen-api.mjs
+tests/mock-api/                 # servidor mock para integración y E2E
 ```
 
-## 12. Riesgos y pendientes
+## 13. Riesgos
 
-- **Sin refresh:** cada vencimiento obliga a iniciar sesión otra vez (15 min en pruebas). Se mitiga con el aviso claro y conservando `next`.
-- **Guardas solo de cliente:** pueden verse un instante de *skeleton*; es UX, no seguridad.
-- **CORS:** si el back no incluye `http://localhost:3001` en `CORS_ORIGINS`, el login falla en el navegador aunque funcione en Swagger. Es lo primero a revisar.
-- **Identidad visual sin definir:** se usa tema neutro; cuando exista paleta/logo se cambian los tokens de Tailwind sin tocar componentes.
-- **Datos pendientes del back** (ver §4, hallazgos 2, 5 y 6).
+- **IP real hacia el back (P-01, D-023):** si `API_URL` apunta al dominio público en vez de a la red privada, o Next no envía `X-Forwarded-For`, los límites por IP se comparten entre todos los usuarios. Se verifica en el despliegue (incremento 9).
+- **SSE por el proxy:** en Railway (contenedor persistente) no hay cortes por duración de función, pero hay que verificar el límite de duración de petición de su proxy y mantener la reconexión con `ready`. Se prueba en el incremento 3.
+- **XSS sigue siendo grave:** puede actuar como el usuario mientras la página esté abierta. Mitigación: CSP con nonce, sin `dangerouslySetInnerHTML`, política de dependencias.
+- **El proxy concentra riesgo:** un error en la normalización de rutas o en la tabla lo convertiría en proxy abierto; por eso CA-15 y CA-16 tienen pruebas dedicadas.
+- **Sin refresh en el back:** cada vencimiento obliga a iniciar sesión de nuevo (se conserva `next`).
+- **Nombres:** en Next 16 el antiguo `middleware.ts` es `src/proxy.ts` (runtime Node). No confundirlo con el proxy de API (`/api/[...path]`), que en el plan se llama «pasarela». En esta spec, «middleware» significa `proxy.ts`.
+- **Identidad visual sin definir:** tema neutro; se cambia por tokens de Tailwind sin tocar componentes.
 
-## 13. Siguiente paso
+## 14. Siguiente paso
 
-Si apruebas (o ajustas) las decisiones D-007 a D-013, redacto `plan.md` (versiones, dependencias, orden de implementación) y `tasks.md`. No escribo código hasta tu aprobación.
+Spec, plan y tareas aprobados. Implementado y en revisión; T-24 (back real) parcial. Ver `docs/commits/001.md`.

@@ -1,0 +1,15 @@
+node_modules/
+.next/
+out/
+coverage/
+playwright-report/
+test-results/
+package-lock.json
+.env
+.env.*
+!.env.example
+docs/
+specs/
+*.md
+src/lib/api/schema.d.ts
+src/lib/api/routes.generated.ts
