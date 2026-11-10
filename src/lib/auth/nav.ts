@@ -33,7 +33,7 @@ export const NAV: Record<Role, NavItem[]> = {
   ],
   operador: [
     { href: ROLE_HOME.operador, label: 'Inicio', enabled: true },
-    soon('/operador/cocina', 'Cocina'),
+    { href: '/operador/cocina', label: 'Cocina', enabled: true },
     soon('/operador/productos', 'Productos'),
     soon('/operador/inventario', 'Inventario'),
   ],
@@ -44,6 +44,7 @@ export const NAV: Record<Role, NavItem[]> = {
   ],
   admin: [
     { href: ROLE_HOME.admin, label: 'Inicio', enabled: true },
+    { href: '/admin/cocina', label: 'Cocina', enabled: true },
     soon('/admin/metricas', 'Métricas'),
     soon('/admin/pedidos', 'Pedidos'),
     soon('/admin/catalogo', 'Catálogo'),

@@ -52,3 +52,27 @@ export async function newCustomerSession(
   await login(page, email, /\/cliente$/);
   return { email };
 }
+
+/** Hace un pedido de un capuchino con el flujo real; devuelve su id y su número. */
+export async function placeOrder(
+  page: Page,
+): Promise<{ id: string; number: number }> {
+  await page.goto('/cliente/menu');
+  await page
+    .getByRole('button', { name: 'Agregar Capuchino al carrito' })
+    .click();
+  await page.getByRole('button', { name: /Abrir carrito/ }).click();
+  await page.getByRole('link', { name: 'Continuar' }).click();
+  await page.getByLabel('Zona').selectOption({ label: 'Zona 1' });
+  await page
+    .getByLabel('Punto de entrega')
+    .selectOption({ label: 'Plazoleta central' });
+  await page.getByRole('button', { name: 'Usar tarjeta de prueba' }).click();
+  await page.getByRole('button', { name: /^Pagar/ }).click();
+  await expect(page).toHaveURL(/\/cliente\/pedidos\/[0-9a-f-]{36}/);
+  const id = /pedidos\/([0-9a-f-]{36})/.exec(page.url())![1]!;
+  const heading = await page
+    .getByRole('heading', { name: /^Pedido #\d+$/ })
+    .textContent();
+  return { id, number: Number(/#(\d+)/.exec(heading ?? '')![1]) };
+}

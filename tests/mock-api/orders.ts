@@ -341,11 +341,84 @@ export function createOrderStore(
     return ok(204, undefined);
   }
 
+  const KITCHEN_STATUSES: OrderStatus[] = [
+    'recibido',
+    'en_preparacion',
+    'listo',
+  ];
+
+  /** Cola de cocina: los pedidos de todos los clientes en esos estados, el más antiguo primero. */
+  function listKitchen(
+    statuses: OrderStatus[],
+    page: number,
+    limit: number,
+  ): OrderResult {
+    const all = orders
+      .filter((o) => statuses.includes(o.status))
+      .sort((x, y) => x.number - y.number);
+    const start = (page - 1) * limit;
+    return ok(200, {
+      page,
+      limit,
+      total: all.length,
+      totalPages: Math.ceil(all.length / limit),
+      data: all.slice(start, start + limit),
+    });
+  }
+
+  function kitchenMove(
+    id: string,
+    from: OrderStatus,
+    to: OrderStatus,
+  ): OrderResult {
+    if (!UUID.test(id)) return err(400, ['id debe ser un UUID']);
+    const order = orders.find((o) => o.id === id);
+    if (!order) return err(404, 'Pedido no encontrado');
+    if (order.status !== from)
+      return err(409, `El pedido no está en estado ${from}`);
+    setStatus(order, to);
+    onChange?.((order as MockOrder & { customerId: string }).customerId, order);
+    return ok(200, order);
+  }
+  const kitchenStart = (id: string) =>
+    kitchenMove(id, 'recibido', 'en_preparacion');
+  const kitchenReady = (id: string) =>
+    kitchenMove(id, 'en_preparacion', 'listo');
+
+  /** Cancelación del personal: en recibido o en preparación y con motivo. */
+  function cancelStaff(id: string, reason: unknown): OrderResult {
+    if (!UUID.test(id)) return err(400, ['id debe ser un UUID']);
+    if (typeof reason !== 'string' || reason.length < 1 || reason.length > 200)
+      return err(400, ['reason debe tener entre 1 y 200 caracteres']);
+    const order = orders.find((o) => o.id === id);
+    if (!order) return err(404, 'Pedido no encontrado');
+    if (order.status !== 'recibido' && order.status !== 'en_preparacion')
+      return err(409, 'El pedido no se puede cancelar en su estado actual');
+    setStatus(order, 'cancelado');
+    order.payment.status = 'reembolsado';
+    order.cancelReason = reason;
+    onChange?.((order as MockOrder & { customerId: string }).customerId, order);
+    return ok(200, order);
+  }
+
   function reset(): void {
     orders.length = 0;
     byKey.clear();
     next = 1001;
   }
 
-  return { create, list, get, cancel, advance, reset, orders };
+  return {
+    create,
+    list,
+    get,
+    cancel,
+    advance,
+    reset,
+    orders,
+    KITCHEN_STATUSES,
+    listKitchen,
+    kitchenStart,
+    kitchenReady,
+    cancelStaff,
+  };
 }

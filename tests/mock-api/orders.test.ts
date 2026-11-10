@@ -156,4 +156,61 @@ describe('mock de pedidos', () => {
       'c-1:1002:cancelado',
     ]);
   });
+  describe('cocina', () => {
+    const second = { id: 'c-2', name: 'Otra Persona', phone: '+573009998877' };
+
+    it('lista los pedidos de todos los clientes, el más antiguo primero, y filtra por estado', () => {
+      const s = store();
+      const a = s.create(me, KEY, body()).body as { id: string };
+      s.create(second, '9c2f7a9f-1b1d-4a4f-8e6f-1b2c3d4e5f60', body());
+      s.kitchenStart(a.id);
+      const all = s.listKitchen(['recibido', 'en_preparacion'], 1, 20).body as {
+        total: number;
+        data: { number: number }[];
+      };
+      expect(all.data.map((o) => o.number)).toEqual([1001, 1002]);
+      const prep = s.listKitchen(['en_preparacion'], 1, 20).body as {
+        data: { number: number }[];
+      };
+      expect(prep.data.map((o) => o.number)).toEqual([1001]);
+      expect(
+        (s.listKitchen(['listo'], 1, 20).body as { total: number }).total,
+      ).toBe(0);
+    });
+
+    it('empezar y listo respetan el orden de estados (409 si no corresponde, 404 si no existe)', () => {
+      const s = store();
+      const { id } = s.create(me, KEY, body()).body as { id: string };
+      expect(s.kitchenReady(id).status).toBe(409);
+      expect(s.kitchenStart(id).status).toBe(200);
+      expect(s.kitchenStart(id).status).toBe(409);
+      expect(s.kitchenReady(id).status).toBe(200);
+      expect(s.kitchenReady(id).status).toBe(409);
+      expect(
+        s.kitchenStart('4b1f6f8e-9a0c-4f3e-9d5e-0a1b2c3d4e5f').status,
+      ).toBe(404);
+    });
+
+    it('el personal cancela con motivo en recibido o en preparación, no después', () => {
+      const s = store();
+      const { id } = s.create(me, KEY, body()).body as { id: string };
+      expect(s.cancelStaff(id, '').status).toBe(400);
+      expect(s.cancelStaff(id, 'x'.repeat(201)).status).toBe(400);
+      s.kitchenStart(id);
+      const done = s.cancelStaff(id, 'Se acabó el café');
+      expect(done.status).toBe(200);
+      expect(done.body).toMatchObject({
+        status: 'cancelado',
+        cancelReason: 'Se acabó el café',
+        payment: { status: 'reembolsado' },
+      });
+      expect(s.cancelStaff(id, 'otra vez').status).toBe(409);
+
+      const next = s.create(me, '9c2f7a9f-1b1d-4a4f-8e6f-1b2c3d4e5f61', body())
+        .body as { id: string };
+      s.kitchenStart(next.id);
+      s.kitchenReady(next.id);
+      expect(s.cancelStaff(next.id, 'tarde').status).toBe(409);
+    });
+  });
 });

@@ -21,9 +21,13 @@ describe('NAV', () => {
   it('solo están habilitadas las secciones ya construidas', () => {
     for (const role of ROLES) {
       const enabled = NAV[role].filter((i) => i.enabled).map((i) => i.label);
-      expect(enabled).toEqual(
-        role === 'cliente' ? ['Inicio', 'Menú', 'Mis pedidos'] : ['Inicio'],
-      );
+      const expected: Record<(typeof ROLES)[number], string[]> = {
+        cliente: ['Inicio', 'Menú', 'Mis pedidos'],
+        operador: ['Inicio', 'Cocina'],
+        admin: ['Inicio', 'Cocina'],
+        repartidor: ['Inicio'],
+      };
+      expect(enabled).toEqual(expected[role]);
     }
   });
 
@@ -33,6 +37,8 @@ describe('NAV', () => {
     expect(labels('admin')).toContain('Usuarios');
     expect(labels('cliente')).not.toContain('Usuarios');
     expect(labels('operador')).toContain('Cocina');
+    expect(labels('admin')).toContain('Cocina');
+    expect(labels('cliente')).not.toContain('Cocina');
     expect(labels('repartidor')).toContain('Mis rondas');
     expect(labels('cliente')).toContain('Mis pedidos');
   });

@@ -1,30 +1,21 @@
 'use client';
 
 import { useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState, type ReactNode } from 'react';
 import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  type ReactNode,
-} from 'react';
-import { notifyUnauthorized } from '@/lib/api/browser-client';
-import { openSseChannel, type SseState } from '@/lib/sse/client';
+  HIDDEN_CLOSE_MS,
+  LiveChannelProvider,
+  useLiveStatus,
+  type LiveStatus,
+} from '@/lib/live/channel';
+import type { openSseChannel } from '@/lib/sse/client';
 import { statusInfo } from './status';
 
-/** `off`: sin canal (sin proveedor, pestaña oculta o fuera de las pantallas del cliente). */
-export type LiveStatus = 'off' | SseState;
+export { HIDDEN_CLOSE_MS, useLiveStatus };
+export type { LiveStatus };
 
-/** Con la pestaña oculta este tiempo se cierra el canal (el back permite 5 por usuario, D-048). */
-export const HIDDEN_CLOSE_MS = 45_000;
 export const ORDERS_STREAM_URL = '/api/orders/stream';
-
-const LiveContext = createContext<LiveStatus>('off');
-
-/** Estado del canal en vivo; `off` si no hay proveedor. */
-export function useLiveStatus(): LiveStatus {
-  return useContext(LiveContext);
-}
+const ORDER_KEYS = [['orders'], ['order']] as const;
 
 interface Seen {
   id: string;
@@ -55,66 +46,10 @@ function ordersIn(key: readonly unknown[], data: unknown): Seen[] {
   );
 }
 
-/**
- * Mantiene un único canal SSE por pestaña mientras el cliente ve sus pedidos (D-047, D-048).
- * Cada evento (`ready` u `order`) hace volver a consultar los pedidos: la pantalla nunca se arma
- * con el contenido del evento (D-049). Los cambios de estado se anuncian a lectores de pantalla.
- */
-export function OrdersLiveProvider({
-  children,
-  open = openSseChannel,
-}: {
-  children: ReactNode;
-  /** Para las pruebas. */
-  open?: typeof openSseChannel;
-}) {
+/** Anuncia a lectores de pantalla los cambios de estado de los pedidos que ya conocía. */
+function OrderAnnouncer() {
   const queryClient = useQueryClient();
-  const [status, setStatus] = useState<LiveStatus>('off');
   const [announcement, setAnnouncement] = useState('');
-
-  useEffect(() => {
-    let channel: { close: () => void } | null = null;
-    let hideTimer: ReturnType<typeof setTimeout> | undefined;
-
-    function connect() {
-      if (channel) return;
-      channel = open({
-        url: ORDERS_STREAM_URL,
-        onState: setStatus,
-        onUnauthorized: notifyUnauthorized,
-        onMessage: (message) => {
-          if (message.event !== 'ready' && message.event !== 'order') return;
-          void queryClient.invalidateQueries({ queryKey: ['orders'] });
-          void queryClient.invalidateQueries({ queryKey: ['order'] });
-        },
-      });
-    }
-
-    function disconnect() {
-      channel?.close();
-      channel = null;
-      setStatus('off');
-    }
-
-    function onVisibility() {
-      clearTimeout(hideTimer);
-      if (document.visibilityState === 'hidden') {
-        hideTimer = setTimeout(disconnect, HIDDEN_CLOSE_MS);
-      } else {
-        connect();
-      }
-    }
-
-    document.addEventListener('visibilitychange', onVisibility);
-    if (document.visibilityState !== 'hidden') connect();
-
-    return () => {
-      clearTimeout(hideTimer);
-      document.removeEventListener('visibilitychange', onVisibility);
-      channel?.close();
-      channel = null;
-    };
-  }, [open, queryClient]);
 
   useEffect(() => {
     const known = new Map<string, string>();
@@ -136,11 +71,32 @@ export function OrdersLiveProvider({
   }, [queryClient]);
 
   return (
-    <LiveContext.Provider value={status}>
+    <p aria-live="polite" aria-atomic="true" className="sr-only">
+      {announcement}
+    </p>
+  );
+}
+
+/**
+ * Canal en vivo del cliente mientras ve sus pedidos (D-047 a D-054): cada evento vuelve a
+ * consultar los pedidos y los cambios de estado se anuncian a lectores de pantalla.
+ */
+export function OrdersLiveProvider({
+  children,
+  open,
+}: {
+  children: ReactNode;
+  /** Para las pruebas. */
+  open?: typeof openSseChannel;
+}) {
+  return (
+    <LiveChannelProvider
+      url={ORDERS_STREAM_URL}
+      invalidate={ORDER_KEYS}
+      open={open}
+    >
       {children}
-      <p aria-live="polite" aria-atomic="true" className="sr-only">
-        {announcement}
-      </p>
-    </LiveContext.Provider>
+      <OrderAnnouncer />
+    </LiveChannelProvider>
   );
 }

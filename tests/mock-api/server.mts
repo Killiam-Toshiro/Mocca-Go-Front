@@ -16,7 +16,9 @@
  *   - behavior.failMe hace que GET /auth/me responda 500
  *   - GET /orders/stream (solo cliente): canal SSE real (`ready`, `order` al crear/avanzar/cancelar, latido cada
  *     behavior.heartbeatMs). Control: POST /__mock/stream/behavior `{status?, silent?, heartbeatMs?, mode?}`,
- *     POST /__mock/stream/drop y GET /__mock/stream/count. Con behavior.streamMode = 'legacy' emite 3 fragmentos
+ *     POST /__mock/stream/drop y GET /__mock/stream/count.
+ *   - Cocina (operador y admin): GET /kitchen/orders?status=, POST /kitchen/orders/:id/start|ready, GET /kitchen/stream
+ *     (recibe los cambios de cualquier cliente) y POST /orders/:id/cancel con `{reason}` para el personal. Con behavior.streamMode = 'legacy' emite 3 fragmentos
  *     separados por behavior.streamGapMs (prueba de la pasarela)
  */
 import { createHash } from 'node:crypto';
@@ -34,6 +36,8 @@ export const MOCK_PASSWORD = 'Password-123456';
 const PREFIX = '/api/v1';
 
 type Role = 'admin' | 'operador' | 'repartidor' | 'cliente';
+const isStaff = (role: Role): boolean =>
+  role === 'operador' || role === 'admin';
 interface MockUser {
   id: string;
   username: string;
@@ -192,13 +196,18 @@ export async function startMockApi(
         at: order.updatedAt,
       })}\n\n`;
       for (const channel of channels) {
-        if (channel.customerId === customerId) channel.res.write(frame);
+        if (channel.kitchen || channel.customerId === customerId)
+          channel.res.write(frame);
       }
     },
   );
 
   /** Canales SSE abiertos (`/orders/stream` en modo `live`). */
-  const channels = new Set<{ customerId: string; res: ServerResponse }>();
+  const channels = new Set<{
+    customerId: string;
+    kitchen: boolean;
+    res: ServerResponse;
+  }>();
   function dropChannels(): void {
     for (const channel of [...channels]) channel.res.end();
     channels.clear();
@@ -546,7 +555,7 @@ export async function startMockApi(
             req.on('close', () => undefined);
             return;
           }
-          const channel = { customerId: session.user.id, res };
+          const channel = { customerId: session.user.id, kitchen: false, res };
           channels.add(channel);
           res.write('event: ready\ndata: {}\n\n');
           const beat = setInterval(
@@ -573,15 +582,75 @@ export async function startMockApi(
         }, gap * 2);
         return;
       }
+      case 'GET /kitchen/orders': {
+        if (!session) return fail(res, 401, 'Unauthorized');
+        if (!isStaff(session.user.role))
+          return fail(res, 403, 'Forbidden resource');
+        const wanted = url.searchParams.get('status');
+        if (
+          wanted !== null &&
+          !orderStore.KITCHEN_STATUSES.includes(wanted as OrderStatus)
+        )
+          return fail(res, 400, 'status inválido');
+        const page = Number(url.searchParams.get('page') ?? 1);
+        const limit = Number(url.searchParams.get('limit') ?? 20);
+        const r = orderStore.listKitchen(
+          wanted ? [wanted as OrderStatus] : ['recibido', 'en_preparacion'],
+          page,
+          limit,
+        );
+        return send(res, r.status, r.body);
+      }
+      case 'GET /kitchen/stream': {
+        if (!session) return fail(res, 401, 'Unauthorized');
+        if (!isStaff(session.user.role))
+          return fail(res, 403, 'Forbidden resource');
+        res.writeHead(200, {
+          'content-type': 'text/event-stream',
+          'cache-control': 'no-cache',
+          connection: 'keep-alive',
+        });
+        const channel = { customerId: session.user.id, kitchen: true, res };
+        channels.add(channel);
+        res.write('event: ready\ndata: {}\n\n');
+        const beat = setInterval(
+          () => res.write(': latido\n\n'),
+          state.behavior.heartbeatMs,
+        );
+        req.on('close', () => {
+          clearInterval(beat);
+          channels.delete(channel);
+        });
+        return;
+      }
       default: {
+        const kitchenAction =
+          /^\/kitchen\/orders\/([^/]+)\/(start|ready)$/.exec(
+            url.pathname.slice(PREFIX.length),
+          );
+        if (kitchenAction && req.method === 'POST') {
+          if (!session) return fail(res, 401, 'Unauthorized');
+          if (!isStaff(session.user.role))
+            return fail(res, 403, 'Forbidden resource');
+          const [, id = '', action] = kitchenAction;
+          const r =
+            action === 'start'
+              ? orderStore.kitchenStart(id)
+              : orderStore.kitchenReady(id);
+          return send(res, r.status, r.body);
+        }
         const detail = /^\/orders\/([^/]+)(\/cancel)?$/.exec(
           url.pathname.slice(PREFIX.length),
         );
         if (detail) {
           if (!session) return fail(res, 401, 'Unauthorized');
+          const [, id = '', cancel] = detail;
+          if (cancel && req.method === 'POST' && isStaff(session.user.role)) {
+            const r = orderStore.cancelStaff(id, parseJson(body)?.reason);
+            return send(res, r.status, r.body);
+          }
           if (session.user.role !== 'cliente')
             return fail(res, 403, 'Forbidden resource');
-          const [, id = '', cancel] = detail;
           if (cancel && req.method === 'POST') {
             const r = orderStore.cancel(session.user.id, id);
             return send(res, r.status, r.body);

@@ -58,6 +58,26 @@ Formato: `D-nnn` · estado (`aceptada` | `propuesta` | `reemplazada por D-nnn`) 
 | D-052 | **Respaldo:** el sondeo de 15 s (D-043) solo corre mientras el canal no esté conectado; con el canal en vivo no hay sondeo periódico. | Usuario, 2026-11-10 (spec 003b) |
 | D-053 | **Indicador «En vivo» / «Reconectando…»** (texto + ícono) y anuncio `aria-live` «Pedido #N: <estado>» cuando el estado cambia; sin sonidos ni notificaciones. | Usuario, 2026-11-10 (spec 003b) |
 | D-054 | **Fin de sesión:** al cerrar sesión o salir de las pantallas del cliente se cierra el canal y se descarta la caché; el canal solo se abre para el rol cliente. | Usuario, 2026-11-10 (spec 003b) |
+| D-055 | **La cocina es una sola pantalla en dos rutas:** `/operador/cocina` (operador) y `/admin/cocina` (admin), cada una tras su guarda de rol (D-012). «Cocina» aparece en la navegación de ambos. | Usuario, 2026-11-10 (spec 004) |
+| D-056 | **Tablero en tres columnas** (Por preparar · En preparación · Listos), en pantallas estrechas como pestañas con contador, del pedido más antiguo al más nuevo. «Listos» solo tiene lo que espera al repartidor; usa tarjetas compactas, muestra los 10 más antiguos y «Ver los N listos» para el resto. | Usuario, 2026-11-10 (spec 004) |
+| D-057 | **Tarjeta de cocina:** número, tiempo de espera, productos con componentes de combos, nota, zona/punto/piso, y nombre y teléfono del cliente (enlace `tel:`); sin precios ni datos de pago. En «Listos» compacto solo el nombre. | Usuario, 2026-11-10 (spec 004) |
+| D-058 | **«Empezar» y «Marcar listo» sin confirmación**, botones grandes; la tarjeta cambia de columna con la respuesta del back; 409 → «Otro operador ya cambió este pedido» y se refresca. | Usuario, 2026-11-10 (spec 004) |
+| D-059 | **Cancelar desde cocina** (Por preparar y En preparación, no Listos) con motivo obligatorio de 1 a 200 caracteres y aviso de reembolso. | Usuario, 2026-11-10 (spec 004) |
+| D-060 | **En vivo:** `GET /kitchen/stream` con el cliente SSE del 003b; el proveedor se generaliza (URL y consultas a invalidar) y se abre solo en la pantalla de cocina. | Usuario, 2026-11-10 (spec 004) |
+| D-061 | **Pedido nuevo:** anuncio `aria-live` «Nuevo pedido #N» y contador en el título de la pestaña si está oculta; sin sonido por ahora. | Usuario, 2026-11-10 (spec 004) |
+| D-062 | **Espera larga con texto e ícono:** más de 5 min en Por preparar, 15 min en En preparación y 10 min en Listos; constantes fáciles de cambiar. | Usuario, 2026-11-10 (spec 004) |
+| D-063 | **Nombre y teléfono del cliente visibles solo para el personal** en la pantalla de cocina, para validar algo con él. | Usuario, 2026-11-10 (spec 004) |
+| D-064 | **Diseño para tablet y escritorio:** columnas amplias, tipografía legible a distancia, botones de al menos 48 px, solo tokens de color, sin desborde desde 360 px. | Usuario, 2026-11-10 (spec 004) |
+| D-065 | **Dos pantallas para el personal:** «Productos» (disponibilidad rápida, `/operador/productos`) e «Inventario» (saldos, movimientos e historial, `/operador/inventario` y `/admin/inventario`). El admin recibe solo «Inventario»; su catálogo completo es del incremento 007. | Usuario, 2026-11-10 (spec 004b) |
+| D-066 | **Estado de disponibilidad en palabras con ícono:** Disponible, Agotado (a mano), Sin saldo, Inactivo, Falta saldo de un componente (combo). Se deriva de `soldOut`, `active`, `stock` y `available`. | Usuario, 2026-11-10 (spec 004b) |
+| D-067 | **«Marcar agotado» / «Volver a vender» sin confirmación** (idempotente y reversible), con aviso breve y botón deshabilitado mientras va la petición. | Usuario, 2026-11-10 (spec 004b) |
+| D-068 | **Movimiento manual sin reintento automático** (`POST /movements` no es idempotente): marca síncrona contra doble envío, motivo obligatorio (1–300), saldo resultante visible en salidas, 409 explicado, y ante un fallo de red ambiguo se avisa que se revise el historial antes de reintentar. | Usuario, 2026-11-10 (spec 004b) |
+| D-069 | **Sin canal en vivo para productos:** consulta al entrar, al volver a la pestaña y cada 30 s visible; indicador «Actualizado hace N s». Sin umbral de «poco saldo» (el back no lo tiene). | Usuario, 2026-11-10 (spec 004b) |
+| D-070 | **Sin costos ni márgenes en pantalla** aunque el back los devuelva. | Usuario, 2026-11-10 (spec 004b) |
+| D-071 | **Combos sin movimientos:** su saldo es calculado a partir de los componentes; el front no ofrece «Registrar movimiento» en combos y lo muestra solo lectura. El precio del combo (suma por defecto o fijado aparte) no depende del inventario. El back no necesita cambios; verificar su respuesta ante un movimiento sobre un combo (P-06). | Usuario, 2026-11-10 (spec 004b) |
+| D-072 | **Historial** de 20 por página con filtros por producto y tipo, fecha en America/Bogota, tipo con texto + ícono, responsable y, si viene de un pedido, la marca «Automático» con el identificador del pedido (sin enlace: el personal aún no tiene detalle de pedido). | Plan 004b |
+| D-073 | **Rutas y navegación:** «Productos» e «Inventario» se habilitan para el operador y «Inventario» se agrega al admin. | Usuario, 2026-11-10 (spec 004b) |
+| D-074 | **Diseño:** tarjetas en 360 px y tabla en pantallas anchas, botones ≥ 48 px, solo tokens de color, sin desborde horizontal. | Usuario, 2026-11-10 (spec 004b) |
 
 ## Reemplazadas
 
@@ -75,3 +95,4 @@ Formato: `D-nnn` · estado (`aceptada` | `propuesta` | `reemplazada por D-nnn`) 
 | P-03 | ~~Verificar qué devuelve `/auth/me` como `username` de un cliente~~ **Resuelto (D-026):** devuelve un identificador interno; se muestra `fullName` de `GET /customers/me`. | Incremento 1 |
 | P-04 | Verificar en Railway que `request.nextUrl` (redirecciones de `proxy.ts`) use el host público y no el interno; si no, construir el origen desde `X-Forwarded-Host`/`X-Forwarded-Proto`. | Despliegue (incremento 9) |
 | P-05 | Confirmar contra el back real qué trae el evento `order` de `/orders/stream` (¿`id`?, ¿`number`?, ¿`status`?). El diseño no depende de ello (D-049); solo afina el anuncio. | Prueba manual del 003b |
+| P-06 | Confirmar contra el back real qué responde `POST /movements` sobre un **combo** (se espera 4xx) y que `GET /products` trae el combo con `stock` calculado. Si lo acepta, pedir al back que lo rechace. | Prueba manual del 004b |
