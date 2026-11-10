@@ -1,3 +1,4 @@
+import { notifyUnauthorized } from './browser-client';
 import { networkError, parseApiError } from './errors';
 
 /**
@@ -6,17 +7,27 @@ import { networkError, parseApiError } from './errors';
  */
 export async function requestJson<T = undefined>(
   url: string,
-  options: { method?: string; body?: unknown } = {},
+  options: {
+    method?: string;
+    body?: unknown;
+    /** Cabeceras extra permitidas por la pasarela (p. ej. `idempotency-key`). */
+    headers?: Record<string, string>;
+    /** Rutas privadas: un 401 cierra la sesión local (como el cliente tipado). */
+    handleUnauthorized?: boolean;
+  } = {},
 ): Promise<T> {
   let response: Response;
   try {
     response = await fetch(url, {
       method: options.method ?? 'POST',
       credentials: 'same-origin',
-      headers:
-        options.body === undefined
-          ? { accept: 'application/json' }
-          : { accept: 'application/json', 'content-type': 'application/json' },
+      headers: {
+        accept: 'application/json',
+        ...(options.body === undefined
+          ? {}
+          : { 'content-type': 'application/json' }),
+        ...options.headers,
+      },
       body: options.body === undefined ? null : JSON.stringify(options.body),
     });
   } catch {
@@ -24,6 +35,8 @@ export async function requestJson<T = undefined>(
   }
 
   if (!response.ok) {
+    if (response.status === 401 && options.handleUnauthorized)
+      notifyUnauthorized();
     throw parseApiError(
       response.status,
       await response.json().catch(() => null),

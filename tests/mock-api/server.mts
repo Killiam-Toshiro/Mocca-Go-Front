@@ -9,6 +9,10 @@
  *   - GET /menu devuelve `{ data }` (20 productos y 3 combos); respeta behavior.menuDelayMs
  *     y behavior.menuStatus (≠ 0 responde ese error). Control para E2E, fuera de /api/v1:
  *     POST /__mock/menu `{ sku, available?, price?, remove? | restore? }` y POST /__mock/menu/reset
+ *   - Pedidos: GET /delivery-zones, POST/GET /orders, GET /orders/:id, POST /orders/:id/cancel
+ *     (tarjeta 4000000000000002 → 402; producto agotado → 409; misma Idempotency-Key → 200).
+ *     Control: POST /__mock/orders/:id/status `{status}`, /__mock/orders/behavior `{createStatus}`
+ *     y /__mock/orders/reset
  *   - behavior.failMe hace que GET /auth/me responda 500
  *   - GET /orders/stream emite 3 fragmentos separados por behavior.streamGapMs
  */
@@ -21,6 +25,7 @@ import type {
 } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { buildMenu, type MockMenuItem } from './menu.ts';
+import { buildZones, createOrderStore, type OrderStatus } from './orders.ts';
 
 export const MOCK_PASSWORD = 'Password-123456';
 const PREFIX = '/api/v1';
@@ -57,6 +62,8 @@ export interface MockApi {
     menuDelayMs: number;
     /** Si no es 0, `GET /menu` responde con ese estado de error. */
     menuStatus: number;
+    /** Si no es 0, `POST /orders` responde con ese estado de error. */
+    createOrderStatus: number;
     streamGapMs: number;
     failMe: boolean;
   };
@@ -98,6 +105,7 @@ function send(res: ServerResponse, status: number, body?: unknown): void {
 
 const REASONS: Record<number, string> = {
   400: 'Bad Request',
+  402: 'Payment Required',
   401: 'Unauthorized',
   403: 'Forbidden',
   404: 'Not Found',
@@ -163,6 +171,11 @@ export async function startMockApi(
   };
   resetCustomers();
 
+  const orderStore = createOrderStore(
+    () => state.menu,
+    () => buildZones(),
+  );
+
   const state: MockApi = {
     url: '',
     port: 0,
@@ -170,6 +183,7 @@ export async function startMockApi(
     behavior: {
       menuDelayMs: 0,
       menuStatus: 0,
+      createOrderStatus: 0,
       streamGapMs: 150,
       failMe: false,
     },
@@ -179,7 +193,9 @@ export async function startMockApi(
       state.requests.length = 0;
       state.behavior.menuDelayMs = 0;
       state.behavior.menuStatus = 0;
+      state.behavior.createOrderStatus = 0;
       state.menu = buildMenu();
+      orderStore.reset();
       state.behavior.streamGapMs = 150;
       state.behavior.failMe = false;
       state.streamsFinished = 0;
@@ -347,6 +363,29 @@ export async function startMockApi(
       return send(res, 204);
     }
 
+    const orderControl = /^\/__mock\/orders\/([^/]+)\/status$/.exec(
+      url.pathname,
+    );
+    if (orderControl && req.method === 'POST') {
+      const change = parseJson(body);
+      if (!change || typeof change.status !== 'string')
+        return fail(res, 400, 'status requerido');
+      const r = orderStore.advance(
+        orderControl[1] ?? '',
+        change.status as OrderStatus,
+      );
+      return send(res, r.status, r.status === 204 ? undefined : r.body);
+    }
+    if (url.pathname === '/__mock/orders/behavior' && req.method === 'POST') {
+      const change = parseJson(body);
+      state.behavior.createOrderStatus = Number(change?.createStatus ?? 0);
+      return send(res, 204);
+    }
+    if (url.pathname === '/__mock/orders/reset' && req.method === 'POST') {
+      orderStore.reset();
+      return send(res, 204);
+    }
+
     if (!url.pathname.startsWith(`${PREFIX}/`))
       return fail(res, 404, 'Not Found');
     const route = `${req.method} ${url.pathname.slice(PREFIX.length)}`;
@@ -392,6 +431,44 @@ export async function startMockApi(
         if (state.behavior.menuStatus !== 0)
           return fail(res, state.behavior.menuStatus, 'Error simulado');
         return send(res, 200, { data: state.menu });
+      case 'GET /delivery-zones':
+        return send(res, 200, { data: buildZones() });
+      case 'POST /orders': {
+        if (!session) return fail(res, 401, 'Unauthorized');
+        if (session.user.role !== 'cliente')
+          return fail(res, 403, 'Forbidden resource');
+        if (state.behavior.createOrderStatus !== 0)
+          return fail(res, state.behavior.createOrderStatus, 'Error simulado');
+        const customer = customers.find((c) => c.id === session.user.id);
+        const header = req.headers['idempotency-key'];
+        const result = orderStore.create(
+          {
+            id: session.user.id,
+            name: customer?.fullName ?? 'Cliente',
+            phone: customer?.phone ?? '+573000000000',
+          },
+          Array.isArray(header) ? header[0] : header,
+          parseJson(body),
+        );
+        return send(res, result.status, result.body);
+      }
+      case 'GET /orders': {
+        if (!session) return fail(res, 401, 'Unauthorized');
+        if (session.user.role !== 'cliente')
+          return fail(res, 403, 'Forbidden resource');
+        const page = Math.max(1, Number(url.searchParams.get('page') ?? 1));
+        const limit = Math.min(
+          100,
+          Math.max(1, Number(url.searchParams.get('limit') ?? 20)),
+        );
+        const result = orderStore.list(
+          session.user.id,
+          page,
+          limit,
+          url.searchParams.get('status'),
+        );
+        return send(res, result.status, result.body);
+      }
       case 'GET /users':
         if (!session) return fail(res, 401, 'Unauthorized');
         if (session.user.role !== 'admin')
@@ -413,8 +490,26 @@ export async function startMockApi(
         }, gap * 2);
         return;
       }
-      default:
+      default: {
+        const detail = /^\/orders\/([^/]+)(\/cancel)?$/.exec(
+          url.pathname.slice(PREFIX.length),
+        );
+        if (detail) {
+          if (!session) return fail(res, 401, 'Unauthorized');
+          if (session.user.role !== 'cliente')
+            return fail(res, 403, 'Forbidden resource');
+          const [, id = '', cancel] = detail;
+          if (cancel && req.method === 'POST') {
+            const r = orderStore.cancel(session.user.id, id);
+            return send(res, r.status, r.body);
+          }
+          if (!cancel && req.method === 'GET') {
+            const r = orderStore.get(session.user.id, id);
+            return send(res, r.status, r.body);
+          }
+        }
         return fail(res, 404, `Cannot ${req.method} ${url.pathname}`);
+      }
     }
   }
 

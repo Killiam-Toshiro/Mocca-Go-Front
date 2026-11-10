@@ -45,7 +45,7 @@ export function Logo({
       <LogoMark className={iconClassName} />
       <span
         className={cn(
-          'font-display text-xl leading-none font-bold tracking-tight',
+          'font-display text-xl leading-none font-bold tracking-tight whitespace-nowrap',
           textClassName,
         )}
       >

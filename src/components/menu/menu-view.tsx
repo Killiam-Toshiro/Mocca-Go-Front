@@ -22,7 +22,14 @@ import {
 import { useMenu } from '@/lib/menu/use-menu';
 
 /** Menú con filtro por categoría, detalle y carrito. Lo usan `/` y `/cliente/menu`. */
-export function MenuView({ audience }: { audience: Audience }) {
+export function MenuView({
+  audience,
+  emptyCartNotice = false,
+}: {
+  audience: Audience;
+  /** Llegó desde un pedido con el carrito vacío (D-042). */
+  emptyCartNotice?: boolean;
+}) {
   const canOrder = audience !== 'personal';
   const query = useMenu();
   const cart = useCart();
@@ -49,6 +56,12 @@ export function MenuView({ audience }: { audience: Audience }) {
         <h1 className="font-display text-3xl font-semibold">Menú</h1>
         {canOrder ? <CartButton onClick={() => setCartOpen(true)} /> : null}
       </div>
+
+      {emptyCartNotice && canOrder ? (
+        <Alert role="status">
+          Tu carrito está vacío. Agrega productos para hacer un pedido.
+        </Alert>
+      ) : null}
 
       {query.isPending ? (
         <div

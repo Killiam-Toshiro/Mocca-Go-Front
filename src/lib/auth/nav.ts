@@ -28,7 +28,7 @@ export const NAV: Record<Role, NavItem[]> = {
   cliente: [
     { href: ROLE_HOME.cliente, label: 'Inicio', enabled: true },
     { href: '/cliente/menu', label: 'Menú', enabled: true },
-    soon('/cliente/pedidos', 'Mis pedidos'),
+    { href: '/cliente/pedidos', label: 'Mis pedidos', enabled: true },
     soon('/cliente/perfil', 'Mi perfil'),
   ],
   operador: [

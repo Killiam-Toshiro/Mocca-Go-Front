@@ -29,3 +29,26 @@ export const ROLES = [
 export function errorAlert(page: Page): Locator {
   return page.locator('[role="alert"]:not(#__next-route-announcer__)');
 }
+
+const MOCK_API = 'http://127.0.0.1:4010/api/v1';
+
+/**
+ * Crea un cliente nuevo directamente en el mock e inicia sesión por la interfaz.
+ * Cada prueba tiene su propio cliente: los pedidos no se mezclan entre escritorio y móvil.
+ */
+export async function newCustomerSession(
+  page: Page,
+): Promise<{ email: string }> {
+  const email = `cliente-${Date.now()}-${Math.floor(Math.random() * 1e6)}@example.com`;
+  const res = await page.request.post(`${MOCK_API}/customers`, {
+    data: {
+      email,
+      password: PASSWORD,
+      fullName: 'Cliente de Prueba',
+      phone: '3001234567',
+    },
+  });
+  expect(res.status()).toBe(201);
+  await login(page, email, /\/cliente$/);
+  return { email };
+}

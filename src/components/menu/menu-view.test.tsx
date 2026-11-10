@@ -114,7 +114,7 @@ describe('MenuView', () => {
     ).toHaveAttribute('href', '/login?next=/cliente/menu');
   });
 
-  it('un cliente ve «Continuar» deshabilitado', async () => {
+  it('un cliente ve «Continuar» como enlace al pedido', async () => {
     serve([CAPU]);
     renderWithQuery(<MenuView audience="cliente" />);
     await userEvent.click(
@@ -125,7 +125,29 @@ describe('MenuView', () => {
     await userEvent.click(
       screen.getByRole('button', { name: /Abrir carrito/ }),
     );
+    expect(screen.getByRole('link', { name: 'Continuar' })).toHaveAttribute(
+      'href',
+      '/cliente/pedido',
+    );
+  });
+
+  it('con un agotado en el carrito, «Continuar» queda deshabilitado', async () => {
+    addToCart({ id: 'tres', name: 'Tres leches', price: 6000 }, 1);
+    serve([CAPU, TRES]);
+    renderWithQuery(<MenuView audience="cliente" />);
+    await screen.findByText('Capuchino');
+    await userEvent.click(
+      screen.getByRole('button', { name: /Abrir carrito/ }),
+    );
     expect(screen.getByRole('button', { name: 'Continuar' })).toBeDisabled();
+  });
+
+  it('avisa si llegó con el carrito vacío', async () => {
+    serve([CAPU]);
+    renderWithQuery(<MenuView audience="cliente" emptyCartNotice />);
+    expect(
+      await screen.findByText(/Tu carrito está vacío/),
+    ).toBeInTheDocument();
   });
 
   it('el personal no ve carrito ni botones de agregar', async () => {

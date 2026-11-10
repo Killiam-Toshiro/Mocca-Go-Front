@@ -40,7 +40,7 @@ describe('RolePanel', () => {
     );
     mount('cliente');
     expect(screen.queryByText('Usuarios')).not.toBeInTheDocument();
-    expect(screen.getByText('Mis pedidos')).toBeInTheDocument();
+    expect(screen.getByText('Mi perfil')).toBeInTheDocument();
   });
 
   describe('nombre del cliente (P-03)', () => {

@@ -159,15 +159,17 @@ function CartContent({
             </Button>
           ) : (
             <div className="grid gap-1">
-              <Button type="button" disabled aria-describedby="continuar-nota">
-                Continuar
-              </Button>
-              <p
-                id="continuar-nota"
-                className="text-center text-xs text-muted-foreground"
-              >
-                Disponible pronto.
-              </p>
+              {audience === 'cliente' && view.canContinue ? (
+                <Button asChild>
+                  <Link href="/cliente/pedido" onClick={onClose}>
+                    Continuar
+                  </Link>
+                </Button>
+              ) : (
+                <Button type="button" disabled>
+                  Continuar
+                </Button>
+              )}
             </div>
           )}
 

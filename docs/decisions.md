@@ -40,6 +40,17 @@ Formato: `D-nnn` · estado (`aceptada` | `propuesta` | `reemplazada por D-nnn`) 
 | D-035 | **Formato:** pesos con `Intl.NumberFormat('es-CO', COP, sin decimales)`; categorías: Combos, Cafés, Bebidas, Panadería, Pastelería, Snacks. | Usuario, 2026-11-10 (spec 002) |
 | D-036 | **Íconos por categoría** (lucide) en lugar de fotos, hasta que el back ofrezca imágenes. | Usuario, 2026-11-10 (spec 002) |
 
+| D-037 | **El seguimiento en vivo (SSE) se separa en el incremento 003b.** El 003 cubre pedido, pago, «Mis pedidos», detalle y cancelar; el detalle se mantiene al día consultando cada 15 s mientras el pedido no sea final y al volver a la pestaña. | Usuario, 2026-11-10 (spec 003) |
+| D-038 | **Pago de demostración:** campo de tarjeta de 16 dígitos con espacios cada 4, nota «4242 4242 4242 4242 aprueba» y botón «Usar tarjeta de prueba»; sin fecha ni CVV (el back no los pide). El número solo vive en el estado del formulario: nunca en almacenamiento, caché, URL ni registros. | Usuario, 2026-11-10 (spec 003) |
+| D-039 | **El pedido es una página** (`/cliente/pedido`) con un solo botón «Pagar $X»; punto de entrega en dos selectores nativos (zona → punto) y piso si el punto tiene pisos. «Continuar» del carrito navega allí. | Usuario, 2026-11-10 (spec 003) |
+| D-040 | **Idempotencia:** un UUID por intento en `sessionStorage` con una huella del contenido; si falla por red y se reintenta con los mismos datos se reenvía la misma `Idempotency-Key` (sin cobro doble); si cambian, clave nueva. Se borra al tener éxito. | Usuario, 2026-11-10 (spec 003) |
+| D-041 | **Errores sin perder lo escrito:** 402 → «La tarjeta fue rechazada» junto al campo; 409/404 → refrescar menú y zonas, reconciliar el carrito y explicar; 400 → mensajes del back; 429 → «Demasiados intentos»; red/5xx → «Reintentar». El carrito se vacía solo tras un 200/201. | Usuario, 2026-11-10 (spec 003) |
+| D-042 | **Éxito:** navegar a `/cliente/pedidos/[id]?nuevo=1` con «¡Pedido #N recibido!» anunciado; borrador (punto, piso, notas) en `sessionStorage`, nunca la tarjeta. | Usuario, 2026-11-10 (spec 003) |
+| D-043 | **Mis pedidos y detalle:** lista de 10 con «Ver más»; detalle con línea de tiempo de `events`; consulta cada 15 s si el estado no es final (`entregado`, `cancelado`, `no_entregado`). Fechas es-CO, America/Bogota. | Usuario, 2026-11-10 (spec 003) |
+| D-044 | **Cancelar** solo en «recibido», con confirmación en línea; 409 → explicar y refrescar; luego «Cancelado» y pago «Reembolsado». | Usuario, 2026-11-10 (spec 003) |
+| D-045 | **Repartidor en «en_camino»:** nombre, teléfono, hora estimada y enlace de WhatsApp solo si empieza por `https://wa.me/`. | Usuario, 2026-11-10 (spec 003) |
+| D-046 | **Estados con texto + ícono** (Recibido, En preparación, Listo, En camino, Entregado, No entregado, Cancelado); nunca solo color. | Usuario, 2026-11-10 (spec 003) |
+
 ## Reemplazadas
 
 | ID | Decisión original | Reemplazada por |

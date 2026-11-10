@@ -22,7 +22,7 @@ describe('NAV', () => {
     for (const role of ROLES) {
       const enabled = NAV[role].filter((i) => i.enabled).map((i) => i.label);
       expect(enabled).toEqual(
-        role === 'cliente' ? ['Inicio', 'Menú'] : ['Inicio'],
+        role === 'cliente' ? ['Inicio', 'Menú', 'Mis pedidos'] : ['Inicio'],
       );
     }
   });

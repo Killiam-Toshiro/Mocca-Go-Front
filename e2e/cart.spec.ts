@@ -76,9 +76,11 @@ test.describe('carrito', () => {
     ).toBeVisible();
 
     await page.getByRole('button', { name: /Abrir carrito/ }).click();
-    await expect(
-      page.getByRole('button', { name: 'Continuar' }),
-    ).toBeDisabled();
+    // Con sesión de cliente, «Continuar» lleva a la página de pedido (spec 003).
+    await expect(page.getByRole('link', { name: 'Continuar' })).toHaveAttribute(
+      'href',
+      '/cliente/pedido',
+    );
     await page.getByRole('button', { name: 'Cerrar' }).click();
 
     // «Salir» está en la cabecera (escritorio) o dentro del menú móvil.
