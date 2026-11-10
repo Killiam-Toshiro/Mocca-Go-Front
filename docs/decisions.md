@@ -50,6 +50,14 @@ Formato: `D-nnn` · estado (`aceptada` | `propuesta` | `reemplazada por D-nnn`) 
 | D-044 | **Cancelar** solo en «recibido», con confirmación en línea; 409 → explicar y refrescar; luego «Cancelado» y pago «Reembolsado». | Usuario, 2026-11-10 (spec 003) |
 | D-045 | **Repartidor en «en_camino»:** nombre, teléfono, hora estimada y enlace de WhatsApp solo si empieza por `https://wa.me/`. | Usuario, 2026-11-10 (spec 003) |
 | D-046 | **Estados con texto + ícono** (Recibido, En preparación, Listo, En camino, Entregado, No entregado, Cancelado); nunca solo color. | Usuario, 2026-11-10 (spec 003) |
+| D-047 | **Cliente SSE propio sobre `fetch`** (sin dependencias nuevas) que lee el flujo con la cookie de sesión y conoce el código HTTP (401, 403, 429); no se usa `EventSource`. Reutilizable para cocina y despacho. | Usuario, 2026-11-10 (spec 003b) |
+| D-048 | **Un canal por pestaña**, abierto por un proveedor en el layout del cliente solo con la pestaña visible; oculta **45 s** se cierra y al volver se reabre (el back permite 5 canales por usuario). | Usuario, 2026-11-10 (spec 003b) |
+| D-049 | **Un evento = volver a consultar.** `ready` y `order` invalidan las consultas de pedidos; la pantalla muestra siempre datos del back, no construidos desde el evento (cuyo contenido el contrato no detalla). | Usuario, 2026-11-10 (spec 003b) |
+| D-050 | **Reconexión** con espera creciente y variación (1 s a 30 s; se reinicia con `ready`); 401 → sesión vencida y sin reintento; 403 → sin reintento; 429 → espera 60 s. | Usuario, 2026-11-10 (spec 003b) |
+| D-051 | **Vigilante de latido:** 60 s sin recibir nada (el back manda un latido cada 25 s) → cerrar y reconectar. | Usuario, 2026-11-10 (spec 003b) |
+| D-052 | **Respaldo:** el sondeo de 15 s (D-043) solo corre mientras el canal no esté conectado; con el canal en vivo no hay sondeo periódico. | Usuario, 2026-11-10 (spec 003b) |
+| D-053 | **Indicador «En vivo» / «Reconectando…»** (texto + ícono) y anuncio `aria-live` «Pedido #N: <estado>» cuando el estado cambia; sin sonidos ni notificaciones. | Usuario, 2026-11-10 (spec 003b) |
+| D-054 | **Fin de sesión:** al cerrar sesión o salir de las pantallas del cliente se cierra el canal y se descarta la caché; el canal solo se abre para el rol cliente. | Usuario, 2026-11-10 (spec 003b) |
 
 ## Reemplazadas
 
@@ -66,3 +74,4 @@ Formato: `D-nnn` · estado (`aceptada` | `propuesta` | `reemplazada por D-nnn`) 
 | P-02 | ~~Hosting~~ **Resuelto por D-022 (Railway).** Verificar en el incremento 3 el límite de duración de petición del proxy de Railway. | Incremento 3 |
 | P-03 | ~~Verificar qué devuelve `/auth/me` como `username` de un cliente~~ **Resuelto (D-026):** devuelve un identificador interno; se muestra `fullName` de `GET /customers/me`. | Incremento 1 |
 | P-04 | Verificar en Railway que `request.nextUrl` (redirecciones de `proxy.ts`) use el host público y no el interno; si no, construir el origen desde `X-Forwarded-Host`/`X-Forwarded-Proto`. | Despliegue (incremento 9) |
+| P-05 | Confirmar contra el back real qué trae el evento `order` de `/orders/stream` (¿`id`?, ¿`number`?, ¿`status`?). El diseño no depende de ello (D-049); solo afina el anuncio. | Prueba manual del 003b |

@@ -3,18 +3,27 @@
 import { useQuery } from '@tanstack/react-query';
 import { isApiError } from '@/lib/api/errors';
 import { requestJson } from '@/lib/api/json';
+import { useLiveStatus, type LiveStatus } from './live';
 import { isFinalStatus } from './status';
 import type { Order } from './types';
 
 export const ORDER_POLL_MS = 15_000;
 
-/** Cada 15 s mientras el pedido no termine; nunca en un estado final (D-043). */
-export function orderRefetchInterval(order: Order | undefined): number | false {
+/**
+ * Cada 15 s mientras el pedido no termine; nunca en un estado final (D-043).
+ * Es el respaldo del canal en vivo: con el canal conectado no hay consulta periódica (D-052).
+ */
+export function orderRefetchInterval(
+  order: Order | undefined,
+  live: LiveStatus = 'off',
+): number | false {
+  if (live === 'live') return false;
   return order && !isFinalStatus(order.status) ? ORDER_POLL_MS : false;
 }
 
 /** Un pedido propio. 404 si no existe o es de otro cliente. */
 export function useOrder(id: string) {
+  const live = useLiveStatus();
   return useQuery<Order>({
     queryKey: ['order', id],
     queryFn: () =>
@@ -22,7 +31,7 @@ export function useOrder(id: string) {
         method: 'GET',
         handleUnauthorized: true,
       }),
-    refetchInterval: (query) => orderRefetchInterval(query.state.data),
+    refetchInterval: (query) => orderRefetchInterval(query.state.data, live),
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
     retry: (count, error) =>

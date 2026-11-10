@@ -22,7 +22,7 @@ async function placeOrder(page: Page): Promise<string> {
 }
 
 test.describe('seguimiento del pedido', () => {
-  test('el detalle se actualiza solo (cada 15 s) y oculta «Cancelar» al empezar la preparación', async ({
+  test('el detalle se actualiza solo y oculta «Cancelar» al empezar la preparación', async ({
     page,
     request,
   }) => {
@@ -36,7 +36,7 @@ test.describe('seguimiento del pedido', () => {
     await request.post(`${MOCK}/__mock/orders/${id}/status`, {
       data: { status: 'en_preparacion' },
     });
-    // Sin recargar: la consulta periódica (15 s) trae el cambio.
+    // Sin recargar: el canal en vivo trae el cambio.
     const history = page.getByRole('list', { name: 'Historial del pedido' });
     await expect(history.getByText('En preparación')).toBeVisible({
       timeout: 25_000,
@@ -74,6 +74,14 @@ test.describe('seguimiento del pedido', () => {
     request,
   }) => {
     await newCustomerSession(page);
+    // Sin canal en vivo (rechazado), la pantalla no se entera del cambio y el back responde 409.
+    await page.route('**/api/orders/stream', (route) =>
+      route.fulfill({
+        status: 403,
+        contentType: 'application/json',
+        body: '{}',
+      }),
+    );
     const id = await placeOrder(page);
     await page.getByRole('button', { name: 'Cancelar pedido' }).click();
     await request.post(`${MOCK}/__mock/orders/${id}/status`, {

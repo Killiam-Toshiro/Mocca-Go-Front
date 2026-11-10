@@ -385,6 +385,7 @@ describe('forward: fallos de conexión', () => {
 describe('forward: flujo (CA-18)', () => {
   it('entrega el primer fragmento antes de que el back termine', async () => {
     const token = await loginToken();
+    mock.behavior.streamMode = 'legacy';
     mock.behavior.streamGapMs = 200;
 
     const response = await forward(
@@ -415,6 +416,7 @@ describe('forward: flujo (CA-18)', () => {
   it('si el navegador cierra la conexión, se corta la llamada al back', async () => {
     const token = await loginToken();
     const controller = new AbortController();
+    mock.behavior.streamMode = 'legacy';
     mock.behavior.streamGapMs = 100;
 
     const response = await forward(

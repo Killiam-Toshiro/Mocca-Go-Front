@@ -19,7 +19,7 @@ Plantillas en `specs/_templates/`.
 | 001 | Base, login/registro y rutas por rol | en revisión (T-01 a T-26 hechas) |
 | 002 | Menú y carrito | implementado; falta tu prueba manual (T-14) y revisión |
 | 003 | Pedido y pago (checkout, mis pedidos, detalle, cancelar) | implementado; falta tu prueba manual (T-11) y revisión |
-| 003b | Seguimiento en vivo (SSE) | pendiente |
+| 003b | Seguimiento en vivo (SSE) | implementado; falta tu prueba manual (T-09) y revisión |
 | 004 | Cocina | pendiente |
 | 005 | Repartidor | pendiente |
 | 006 | Cliente: encuesta y perfil | pendiente |

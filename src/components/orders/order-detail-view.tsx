@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useRef } from 'react';
 import { CancelOrder } from '@/components/orders/cancel-order';
 import { CourierCard } from '@/components/orders/courier-card';
+import { LiveBadge } from '@/components/orders/live-badge';
 import { OrderTimeline } from '@/components/orders/order-timeline';
 import { StatusBadge } from '@/components/orders/status-badge';
 import { Alert } from '@/components/ui/alert';
@@ -12,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { describeApiError, isApiError } from '@/lib/api/errors';
 import { formatCOP } from '@/lib/menu/format';
 import { formatOrderDate } from '@/lib/orders/format';
+import { isFinalStatus } from '@/lib/orders/status';
 import { useOrder } from '@/lib/orders/use-order';
 
 const CARD = 'grid gap-3 rounded-xl border bg-card p-4';
@@ -100,9 +102,12 @@ export function OrderDetailView({
         </h1>
         <StatusBadge status={order.status} className="text-sm" />
       </div>
-      <p className="-mt-4 text-sm text-muted-foreground">
-        {formatOrderDate(order.createdAt)}
-      </p>
+      <div className="-mt-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+        <p className="text-sm text-muted-foreground">
+          {formatOrderDate(order.createdAt)}
+        </p>
+        {isFinalStatus(order.status) ? null : <LiveBadge />}
+      </div>
 
       {order.cancelReason ? (
         <Alert>Motivo de la cancelación: {order.cancelReason}</Alert>

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { LoaderCircle } from 'lucide-react';
+import { LiveBadge } from '@/components/orders/live-badge';
 import { OrderRow } from '@/components/orders/order-row';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -16,7 +17,10 @@ export function OrdersView() {
 
   return (
     <div className="grid gap-6">
-      <h1 className="font-display text-3xl font-semibold">Mis pedidos</h1>
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+        <h1 className="font-display text-3xl font-semibold">Mis pedidos</h1>
+        <LiveBadge />
+      </div>
 
       {query.isPending ? (
         <div

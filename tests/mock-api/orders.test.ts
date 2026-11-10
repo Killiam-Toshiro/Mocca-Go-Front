@@ -135,4 +135,25 @@ describe('mock de pedidos', () => {
     expect(order.delivery.etaAt).toBeTruthy();
     expect(s.cancel('c-1', created.id).status).toBe(409);
   });
+  it('avisa cada cambio (crear, avanzar, cancelar) con el dueño del pedido', () => {
+    const seen: string[] = [];
+    const s = createOrderStore(
+      () => menu,
+      buildZones,
+      (customerId, order) =>
+        seen.push(`${customerId}:${order.number}:${order.status}`),
+    );
+    const created = s.create(me, KEY, body()).body as { id: string };
+    s.create(me, KEY, body()); // repetición con la misma clave: no es un cambio
+    s.advance(created.id, 'en_preparacion');
+    const other = s.create(me, '9c2f7a9f-1b1d-4a4f-8e6f-1b2c3d4e5f60', body())
+      .body as { id: string };
+    s.cancel('c-1', other.id);
+    expect(seen).toEqual([
+      'c-1:1001:recibido',
+      'c-1:1001:en_preparacion',
+      'c-1:1002:recibido',
+      'c-1:1002:cancelado',
+    ]);
+  });
 });

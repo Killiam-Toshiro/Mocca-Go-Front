@@ -14,7 +14,10 @@
  *     Control: POST /__mock/orders/:id/status `{status}`, /__mock/orders/behavior `{createStatus}`
  *     y /__mock/orders/reset
  *   - behavior.failMe hace que GET /auth/me responda 500
- *   - GET /orders/stream emite 3 fragmentos separados por behavior.streamGapMs
+ *   - GET /orders/stream (solo cliente): canal SSE real (`ready`, `order` al crear/avanzar/cancelar, latido cada
+ *     behavior.heartbeatMs). Control: POST /__mock/stream/behavior `{status?, silent?, heartbeatMs?, mode?}`,
+ *     POST /__mock/stream/drop y GET /__mock/stream/count. Con behavior.streamMode = 'legacy' emite 3 fragmentos
+ *     separados por behavior.streamGapMs (prueba de la pasarela)
  */
 import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
@@ -66,6 +69,14 @@ export interface MockApi {
     createOrderStatus: number;
     streamGapMs: number;
     failMe: boolean;
+    /** `live`: canal SSE real (ready, order, latidos). `legacy`: tres fragmentos y cierre (prueba de la pasarela). */
+    streamMode: 'live' | 'legacy';
+    /** Si no es 0, `GET /orders/stream` responde con ese estado de error. */
+    streamStatus: number;
+    /** Si es true, el canal se abre pero no envía nada (ni `ready` ni latidos). */
+    streamSilent: boolean;
+    /** Cada cuánto el canal envía un latido. */
+    heartbeatMs: number;
   };
   /** Menú vigente (se puede modificar en las pruebas). */
   menu: MockMenuItem[];
@@ -174,7 +185,24 @@ export async function startMockApi(
   const orderStore = createOrderStore(
     () => state.menu,
     () => buildZones(),
+    (customerId, order) => {
+      const frame = `event: order\ndata: ${JSON.stringify({
+        number: order.number,
+        status: order.status,
+        at: order.updatedAt,
+      })}\n\n`;
+      for (const channel of channels) {
+        if (channel.customerId === customerId) channel.res.write(frame);
+      }
+    },
   );
+
+  /** Canales SSE abiertos (`/orders/stream` en modo `live`). */
+  const channels = new Set<{ customerId: string; res: ServerResponse }>();
+  function dropChannels(): void {
+    for (const channel of [...channels]) channel.res.end();
+    channels.clear();
+  }
 
   const state: MockApi = {
     url: '',
@@ -186,6 +214,10 @@ export async function startMockApi(
       createOrderStatus: 0,
       streamGapMs: 150,
       failMe: false,
+      streamMode: 'live',
+      streamStatus: 0,
+      streamSilent: false,
+      heartbeatMs: 5_000,
     },
     menu: buildMenu(),
     streamsFinished: 0,
@@ -198,6 +230,11 @@ export async function startMockApi(
       orderStore.reset();
       state.behavior.streamGapMs = 150;
       state.behavior.failMe = false;
+      state.behavior.streamMode = 'live';
+      state.behavior.streamStatus = 0;
+      state.behavior.streamSilent = false;
+      state.behavior.heartbeatMs = 5_000;
+      dropChannels();
       state.streamsFinished = 0;
       sessions.clear();
       resetCustomers();
@@ -381,6 +418,25 @@ export async function startMockApi(
       state.behavior.createOrderStatus = Number(change?.createStatus ?? 0);
       return send(res, 204);
     }
+    if (url.pathname === '/__mock/stream/behavior' && req.method === 'POST') {
+      const change = parseJson(body);
+      if (typeof change?.status === 'number')
+        state.behavior.streamStatus = change.status;
+      if (typeof change?.silent === 'boolean')
+        state.behavior.streamSilent = change.silent;
+      if (typeof change?.heartbeatMs === 'number')
+        state.behavior.heartbeatMs = change.heartbeatMs;
+      if (change?.mode === 'live' || change?.mode === 'legacy')
+        state.behavior.streamMode = change.mode;
+      return send(res, 204);
+    }
+    if (url.pathname === '/__mock/stream/drop' && req.method === 'POST') {
+      dropChannels();
+      return send(res, 204);
+    }
+    if (url.pathname === '/__mock/stream/count' && req.method === 'GET') {
+      return send(res, 200, { open: channels.size });
+    }
     if (url.pathname === '/__mock/orders/reset' && req.method === 'POST') {
       orderStore.reset();
       return send(res, 204);
@@ -476,6 +532,33 @@ export async function startMockApi(
         return send(res, 200, []);
       case 'GET /orders/stream': {
         if (!session) return fail(res, 401, 'Unauthorized');
+        if (state.behavior.streamMode === 'live') {
+          if (session.user.role !== 'cliente')
+            return fail(res, 403, 'Forbidden resource');
+          if (state.behavior.streamStatus)
+            return fail(res, state.behavior.streamStatus, 'Canal rechazado');
+          res.writeHead(200, {
+            'content-type': 'text/event-stream',
+            'cache-control': 'no-cache',
+            connection: 'keep-alive',
+          });
+          if (state.behavior.streamSilent) {
+            req.on('close', () => undefined);
+            return;
+          }
+          const channel = { customerId: session.user.id, res };
+          channels.add(channel);
+          res.write('event: ready\ndata: {}\n\n');
+          const beat = setInterval(
+            () => res.write(': latido\n\n'),
+            state.behavior.heartbeatMs,
+          );
+          req.on('close', () => {
+            clearInterval(beat);
+            channels.delete(channel);
+          });
+          return;
+        }
         res.writeHead(200, {
           'content-type': 'text/event-stream',
           'cache-control': 'no-cache',

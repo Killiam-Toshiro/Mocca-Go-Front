@@ -164,6 +164,18 @@ describe('useOrder', () => {
     for (const status of ['entregado', 'cancelado', 'no_entregado'] as const)
       expect(orderRefetchInterval({ ...base!, status })).toBe(false);
   });
+  it('con el canal en vivo no hay consulta periódica; si cae, vuelve el respaldo', () => {
+    const base = order as never as Parameters<typeof orderRefetchInterval>[0];
+    const pending = { ...base!, status: 'en_camino' as const };
+    expect(orderRefetchInterval(pending, 'live')).toBe(false);
+    for (const live of [
+      'off',
+      'connecting',
+      'reconnecting',
+      'stopped',
+    ] as const)
+      expect(orderRefetchInterval(pending, live)).toBe(15_000);
+  });
 });
 
 describe('useCancelOrder', () => {

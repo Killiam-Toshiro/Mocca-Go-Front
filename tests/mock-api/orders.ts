@@ -140,6 +140,8 @@ const isNote = (v: unknown): v is string =>
 export function createOrderStore(
   getMenu: () => MockMenuItem[],
   getZones: () => MockZone[],
+  /** Se llama cada vez que un pedido nace o cambia de estado (alimenta el canal SSE). */
+  onChange?: (customerId: string, order: MockOrder) => void,
 ) {
   const orders: MockOrder[] = [];
   const byKey = new Map<string, string>();
@@ -262,6 +264,7 @@ export function createOrderStore(
     (order as MockOrder & { customerId: string }).customerId = customer.id;
     orders.push(order);
     byKey.set(`${customer.id}:${key}`, order.id);
+    onChange?.(customer.id, order);
     return ok(201, order);
   }
 
@@ -324,6 +327,7 @@ export function createOrderStore(
       return err(409, 'El pedido ya no se puede cancelar');
     setStatus(order, 'cancelado');
     order.payment.status = 'reembolsado';
+    onChange?.(customerId, order);
     return ok(200, order);
   }
 
@@ -333,6 +337,7 @@ export function createOrderStore(
     if (!order) return err(404, 'Pedido no encontrado');
     setStatus(order, status);
     if (status === 'cancelado') order.payment.status = 'reembolsado';
+    onChange?.((order as MockOrder & { customerId: string }).customerId, order);
     return ok(204, undefined);
   }
 
