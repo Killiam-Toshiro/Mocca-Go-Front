@@ -56,6 +56,10 @@ export async function newCustomerSession(
 /** Hace un pedido de un capuchino con el flujo real; devuelve su id y su número. */
 export async function placeOrder(
   page: Page,
+  where: { zone: string; point: string } = {
+    zone: 'Zona 1',
+    point: 'Plazoleta central',
+  },
 ): Promise<{ id: string; number: number }> {
   await page.goto('/cliente/menu');
   await page
@@ -63,10 +67,10 @@ export async function placeOrder(
     .click();
   await page.getByRole('button', { name: /Abrir carrito/ }).click();
   await page.getByRole('link', { name: 'Continuar' }).click();
-  await page.getByLabel('Zona').selectOption({ label: 'Zona 1' });
+  await page.getByLabel('Zona').selectOption({ label: where.zone });
   await page
     .getByLabel('Punto de entrega')
-    .selectOption({ label: 'Plazoleta central' });
+    .selectOption({ label: where.point });
   await page.getByRole('button', { name: 'Usar tarjeta de prueba' }).click();
   await page.getByRole('button', { name: /^Pagar/ }).click();
   await expect(page).toHaveURL(/\/cliente\/pedidos\/[0-9a-f-]{36}/);

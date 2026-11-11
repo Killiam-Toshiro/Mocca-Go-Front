@@ -87,6 +87,17 @@ Formato: `D-nnn` · estado (`aceptada` | `propuesta` | `reemplazada por D-nnn`) 
 | D-081 | **Sin duplicar:** botón deshabilitado con marca síncrona mientras corre el lote y filas aplicadas limpiadas al terminar. | Usuario, 2026-11-10 (spec 004c) |
 | D-082 | **Acceso:** «Preparar el día» vive en `/operador/inventario` y `/admin/inventario` como tercera sección. | Usuario, 2026-11-10 (spec 004c) |
 | D-083 | **Límites y diseño:** «Para hoy» entero de 0 a 100 000; combos e inactivos no aparecen; tarjetas en 360 px, botones ≥ 48 px, solo tokens de color. | Usuario, 2026-11-10 (spec 004c) |
+| D-084 | **Dos pantallas del repartidor:** «Cola de despacho» (`/repartidor/cola`) y «Mis rondas» (`/repartidor/rondas`); al crear la ronda se navega a «Mis rondas». | Usuario, 2026-11-10 (spec 005, DP-01) |
+| D-085 | **Cola por zona** con la zona sugerida marcada con texto e ícono; pedidos con número, punto, piso, indicación y espera; sin precios ni datos de pago. | Usuario, 2026-11-10 (spec 005, DP-02) |
+| D-086 | **Dos maneras de salir:** «Salir con la sugerencia» (`POST /dispatch/rounds` con `{}`) y «Elegir pedidos» (`{ orderIds }`, 1–5, una sola zona; las demás zonas se deshabilitan con explicación). | Usuario, 2026-11-10 (spec 005, DP-03) |
+| D-087 | **Reglas visibles:** con 2 rondas activas los botones de salir se deshabilitan con texto; los 409 de crear ronda se clasifican por los textos fijos del back (perfil incompleto, 2 rondas, sin listos, pedidos tomados, varias zonas) y, si no coinciden, se muestra el del back. Los topes del front son comodidad: el back los impone. | Usuario, 2026-11-10 (spec 005, DP-04; verificado en el código del back) |
+| D-088 | **«Mis rondas»:** zona, salida, llegada estimada (hora de Bogotá), avance y «Vencida hace N min» (informativa) con texto e ícono; al cerrar el último pedido la ronda sale de la lista y se anuncia «Ronda terminada: N entregados, M no entregados». | Usuario, 2026-11-10 (spec 005, DP-05) |
+| D-089 | **Datos del cliente para el repartidor:** nombre y teléfono (enlace `tel:`) y WhatsApp armado como el del back (`https://wa.me/<E.164 sin +>`); indicación de entrega; sin precios ni pago. | Usuario, 2026-11-10 (spec 005, DP-06) |
+| D-090 | **«Entregado» con confirmación en línea** (no se deshace y dispara la encuesta del cliente); **«No entregado» exige motivo** (1–200, recortado, con motivos sugeridos editables). | Usuario, 2026-11-10 (spec 005, DP-07) |
+| D-091 | **Sin reintento automático al crear ronda ni al cerrar un pedido** (D-070): tras un corte de red o 5xx se consulta primero («Mis rondas» / la ronda) y se dice si salió o si se puede reintentar; 409 y 404 al cerrar van en un aviso de pantalla con «Entendido» (D-058). | Spec 005, DP-08 |
+| D-092 | **En vivo:** un solo canal `GET /dispatch/stream` abierto por el layout `(despacho)` para las dos pantallas; un evento vuelve a consultar cola y rondas; respaldo con sondeo de 15 s sin canal; aviso «Pedido #N listo para repartir» y contador en el título. | Spec 005, DP-09/DP-10 |
+| D-093 | **Diseño móvil primero:** barra de salir fija abajo, botones ≥ 48 px, sin desborde en 360 px, solo tokens de color. | Spec 005, DP-11 |
+| D-094 | **Mock de despacho con los textos y reglas del back real** (leídos en `dispatch.service.ts`); para las pruebas E2E en paralelo, cada proyecto usa su propio repartidor (`repartidor`, `repartidor2`) y un `scope` de pedidos visibles (`/__mock/dispatch`). | Plan 005, Anexo A |
 
 ## Reemplazadas
 
@@ -105,3 +116,4 @@ Formato: `D-nnn` · estado (`aceptada` | `propuesta` | `reemplazada por D-nnn`) 
 | P-04 | Verificar en Railway que `request.nextUrl` (redirecciones de `proxy.ts`) use el host público y no el interno; si no, construir el origen desde `X-Forwarded-Host`/`X-Forwarded-Proto`. | Despliegue (incremento 9) |
 | P-05 | Confirmar contra el back real qué trae el evento `order` de `/orders/stream` (¿`id`?, ¿`number`?, ¿`status`?). El diseño no depende de ello (D-049); solo afina el anuncio. | Prueba manual del 003b |
 | P-06 | Confirmar contra el back real qué responde `POST /movements` sobre un **combo** (se espera 4xx) y que `GET /products` trae el combo con `stock` calculado. Si lo acepta, pedir al back que lo rechace. | Prueba manual del 004b |
+| P-07 | ~~Qué responde el back si otro repartidor toma un pedido mientras se elige~~ **Resuelto leyendo el código del back (2026-11-10):** 409 «Los pedidos #N ya no están en estado «listo»» (no 404). Falta confirmarlo en ejecución durante la prueba manual del 005. | Prueba manual 005 |

@@ -420,5 +420,12 @@ export function createOrderStore(
     kitchenStart,
     kitchenReady,
     cancelStaff,
+    /** Para el despacho: mueve el estado de un pedido y avisa a los canales. */
+    setStatus,
+    notify: (order: MockOrder) =>
+      onChange?.(
+        (order as MockOrder & { customerId: string }).customerId,
+        order,
+      ),
   };
 }

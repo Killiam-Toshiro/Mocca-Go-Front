@@ -23,7 +23,7 @@ Plantillas en `specs/_templates/`.
 | 004 | Cocina (operador y admin) | implementado; falta tu prueba manual y revisión |
 | 004b | Operador: productos agotados e inventario | implementado; falta tu prueba manual y revisión |
 | 004c | Producción del día (inventario como abasto de cocina) | implementado; falta tu prueba manual y revisión |
-| 005 | Repartidor | pendiente |
+| 005 | Repartidor (cola de despacho y rondas) | implementado; falta tu prueba manual y revisión |
 | 006 | Cliente: encuesta y perfil | pendiente |
 | 007 | Admin: catálogo, zonas, usuarios | pendiente |
 | 008 | Admin: encuestas y panel de métricas | pendiente |

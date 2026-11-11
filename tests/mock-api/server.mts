@@ -20,6 +20,8 @@
  *   - Cocina (operador y admin): GET /kitchen/orders?status=, POST /kitchen/orders/:id/start|ready, GET /kitchen/stream
  *     (recibe los cambios de cualquier cliente) y POST /orders/:id/cancel con `{reason}` para el personal. Con behavior.streamMode = 'legacy' emite 3 fragmentos
  *     separados por behavior.streamGapMs (prueba de la pasarela)
+ *   - Despacho (repartidor): GET /dispatch/queue, POST /dispatch/rounds, GET /dispatch/rounds(/:id), POST /dispatch/orders/:id/deliver|fail y
+ *     GET /dispatch/stream, con los textos de error del back real. Control: POST /__mock/dispatch `{courier?, profile?: 'incompleto'|'completo', scope?: ids[]|null, foreign?: ids[], reset?}`
  */
 import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
@@ -29,6 +31,7 @@ import type {
   ServerResponse,
 } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { createDispatchStore } from './dispatch.ts';
 import { createInventoryStore } from './inventory.ts';
 import { buildMenu, type MockMenuItem } from './menu.ts';
 import { buildZones, createOrderStore, type OrderStatus } from './orders.ts';
@@ -104,6 +107,12 @@ const STAFF: MockUser[] = [
   {
     id: 'u-repartidor',
     username: 'repartidor',
+    role: 'repartidor',
+    expiresIn: 900,
+  },
+  {
+    id: 'u-repartidor-2',
+    username: 'repartidor2',
     role: 'repartidor',
     expiresIn: 900,
   },
@@ -204,6 +213,8 @@ export async function startMockApi(
     },
   );
 
+  const dispatch = createDispatchStore(orderStore, () => buildZones());
+
   /** Canales SSE abiertos (`/orders/stream` en modo `live`). */
   const channels = new Set<{
     customerId: string;
@@ -240,6 +251,7 @@ export async function startMockApi(
       state.menu = buildMenu();
       inventory.reset();
       orderStore.reset();
+      dispatch.reset();
       state.behavior.streamGapMs = 150;
       state.behavior.failMe = false;
       state.behavior.streamMode = 'live';
@@ -476,6 +488,27 @@ export async function startMockApi(
     }
     if (url.pathname === '/__mock/orders/reset' && req.method === 'POST') {
       orderStore.reset();
+      dispatch.reset();
+      return send(res, 204);
+    }
+    if (url.pathname === '/__mock/dispatch' && req.method === 'POST') {
+      const change = parseJson(body);
+      const courier = text(change?.courier) ? change.courier : undefined;
+      if (change?.reset === true) dispatch.reset();
+      if (change?.profile === 'incompleto')
+        dispatch.setProfile({ fullName: null, phone: null }, courier);
+      if (change?.profile === 'completo') dispatch.restoreProfile(courier);
+      if (change && 'scope' in change) {
+        const scope = change.scope;
+        dispatch.setScope(
+          Array.isArray(scope) ? scope.map(String) : null,
+          courier,
+        );
+      }
+      if (Array.isArray(change?.foreign)) {
+        const r = dispatch.foreign(change.foreign.map(String));
+        if (r.status !== 204) return send(res, r.status, r.body);
+      }
       return send(res, 204);
     }
 
@@ -672,7 +705,76 @@ export async function startMockApi(
         });
         return;
       }
+      case 'GET /dispatch/queue': {
+        if (!session) return fail(res, 401, 'Unauthorized');
+        if (session.user.role !== 'repartidor' && !isStaff(session.user.role))
+          return fail(res, 403, 'Forbidden resource');
+        const r = dispatch.queue(session.user.id);
+        return send(res, r.status, r.body);
+      }
+      case 'POST /dispatch/rounds': {
+        if (!session) return fail(res, 401, 'Unauthorized');
+        if (session.user.role !== 'repartidor')
+          return fail(res, 403, 'Forbidden resource');
+        const r = dispatch.createRound(
+          session.user.id,
+          body.trim() === '' ? {} : parseJson(body),
+        );
+        return send(res, r.status, r.body);
+      }
+      case 'GET /dispatch/rounds': {
+        if (!session) return fail(res, 401, 'Unauthorized');
+        if (session.user.role !== 'repartidor')
+          return fail(res, 403, 'Forbidden resource');
+        const r = dispatch.listRounds(session.user.id, url.searchParams);
+        return send(res, r.status, r.body);
+      }
+      case 'GET /dispatch/stream': {
+        if (!session) return fail(res, 401, 'Unauthorized');
+        if (session.user.role !== 'repartidor')
+          return fail(res, 403, 'Forbidden resource');
+        res.writeHead(200, {
+          'content-type': 'text/event-stream',
+          'cache-control': 'no-cache',
+          connection: 'keep-alive',
+        });
+        const channel = { customerId: session.user.id, kitchen: true, res };
+        channels.add(channel);
+        res.write('event: ready\ndata: {}\n\n');
+        const beat = setInterval(
+          () => res.write(': latido\n\n'),
+          state.behavior.heartbeatMs,
+        );
+        req.on('close', () => {
+          clearInterval(beat);
+          channels.delete(channel);
+        });
+        return;
+      }
       default: {
+        const dispatchPath = url.pathname.slice(PREFIX.length);
+        const roundDetail = /^\/dispatch\/rounds\/([^/]+)$/.exec(dispatchPath);
+        const closeOrder = /^\/dispatch\/orders\/([^/]+)\/(deliver|fail)$/.exec(
+          dispatchPath,
+        );
+        if (
+          (roundDetail && req.method === 'GET') ||
+          (closeOrder && req.method === 'POST')
+        ) {
+          if (!session) return fail(res, 401, 'Unauthorized');
+          if (session.user.role !== 'repartidor')
+            return fail(res, 403, 'Forbidden resource');
+          const r = roundDetail
+            ? dispatch.getRound(session.user.id, roundDetail[1] ?? '')
+            : closeOrder?.[2] === 'deliver'
+              ? dispatch.deliver(session.user.id, closeOrder[1] ?? '')
+              : dispatch.fail(
+                  session.user.id,
+                  closeOrder?.[1] ?? '',
+                  parseJson(body),
+                );
+          return send(res, r.status, r.body);
+        }
         const soldOut = /^\/products\/([^/]+)\/sold-out$/.exec(
           url.pathname.slice(PREFIX.length),
         );

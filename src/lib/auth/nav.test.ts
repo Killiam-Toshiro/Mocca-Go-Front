@@ -25,7 +25,7 @@ describe('NAV', () => {
         cliente: ['Inicio', 'Menú', 'Mis pedidos'],
         operador: ['Inicio', 'Cocina', 'Productos', 'Inventario'],
         admin: ['Inicio', 'Cocina', 'Inventario'],
-        repartidor: ['Inicio'],
+        repartidor: ['Inicio', 'Cola de despacho', 'Mis rondas'],
       };
       expect(enabled).toEqual(expected[role]);
     }

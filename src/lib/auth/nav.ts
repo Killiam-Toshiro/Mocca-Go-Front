@@ -39,8 +39,8 @@ export const NAV: Record<Role, NavItem[]> = {
   ],
   repartidor: [
     { href: ROLE_HOME.repartidor, label: 'Inicio', enabled: true },
-    soon('/repartidor/cola', 'Cola de despacho'),
-    soon('/repartidor/rondas', 'Mis rondas'),
+    { href: '/repartidor/cola', label: 'Cola de despacho', enabled: true },
+    { href: '/repartidor/rondas', label: 'Mis rondas', enabled: true },
   ],
   admin: [
     { href: ROLE_HOME.admin, label: 'Inicio', enabled: true },

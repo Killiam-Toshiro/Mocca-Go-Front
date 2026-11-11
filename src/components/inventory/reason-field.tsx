@@ -12,6 +12,7 @@ export function ReasonField({
   error,
   suggestions,
   label = 'Motivo',
+  max = REASON_MAX,
 }: {
   id: string;
   value: string;
@@ -19,6 +20,8 @@ export function ReasonField({
   error?: string;
   suggestions: string[];
   label?: string;
+  /** Largo máximo del motivo (el del inventario es 300; el de despacho, 200). */
+  max?: number;
 }) {
   return (
     <div className="grid gap-1.5">
@@ -45,6 +48,7 @@ export function ReasonField({
         autoComplete="off"
         className="h-12 text-base"
         value={value}
+        maxLength={max}
         aria-invalid={error ? true : undefined}
         aria-describedby={`${error ? `${id}-error ` : ''}${id}-count`}
         onChange={(e) => onChange(e.target.value)}
@@ -58,7 +62,7 @@ export function ReasonField({
         id={`${id}-count`}
         className="text-sm text-muted-foreground tabular-nums"
       >
-        {value.length}/{REASON_MAX}
+        {value.length}/{max}
       </p>
     </div>
   );
