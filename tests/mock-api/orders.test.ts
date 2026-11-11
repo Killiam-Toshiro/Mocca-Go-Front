@@ -213,4 +213,48 @@ describe('mock de pedidos', () => {
       expect(s.cancelStaff(next.id, 'tarde').status).toBe(409);
     });
   });
+
+  describe('encuesta', () => {
+    function delivered() {
+      const s = store();
+      const created = s.create(me, KEY, body()).body as { id: string };
+      return { s, id: created.id };
+    }
+    it('solo con el pedido entregado, una vez, con los textos del back', () => {
+      const { s, id } = delivered();
+      expect(s.survey('c-1', id, { rating: 5 })).toMatchObject({
+        status: 409,
+        body: {
+          message:
+            'El pedido #1001 está en estado «recibido»; la encuesta se responde cuando está «entregado».',
+        },
+      });
+      s.advance(id, 'entregado');
+      const first = s.survey('c-1', id, { rating: 4, comment: '  Rico  ' });
+      expect(first).toMatchObject({
+        status: 201,
+        body: { orderId: id, rating: 4, comment: 'Rico' },
+      });
+      expect(s.get('c-1', id).body).toMatchObject({ survey: { rating: 4 } });
+      expect(s.survey('c-1', id, { rating: 5 })).toMatchObject({
+        status: 409,
+        body: { message: 'Este pedido ya tiene una respuesta de la encuesta.' },
+      });
+    });
+    it('valida y no deja calificar pedidos ajenos', () => {
+      const { s, id } = delivered();
+      s.advance(id, 'entregado');
+      expect(s.survey('c-1', id, { rating: 6 }).status).toBe(400);
+      expect(s.survey('c-1', id, { rating: 3, comment: '   ' }).status).toBe(
+        400,
+      );
+      expect(
+        s.survey('c-1', id, { rating: 3, comment: 'x'.repeat(301) }).status,
+      ).toBe(400);
+      expect(s.survey('c-2', id, { rating: 3 })).toMatchObject({
+        status: 404,
+        body: { message: 'Pedido no encontrado.' },
+      });
+    });
+  });
 });

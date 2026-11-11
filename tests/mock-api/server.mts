@@ -10,6 +10,7 @@
  *     y behavior.menuStatus (≠ 0 responde ese error). Control para E2E, fuera de /api/v1:
  *     POST /__mock/menu `{ sku, available?, price?, remove? | restore? }` y POST /__mock/menu/reset
  *   - Pedidos: GET /delivery-zones, POST/GET /orders, GET /orders/:id, POST /orders/:id/cancel
+ *   - Cliente: GET/PATCH /customers/me, POST /orders/:id/survey, PATCH /auth/password (reglas y textos del back)
  *     (tarjeta 4000000000000002 → 402; producto agotado → 409; misma Idempotency-Key → 200).
  *     Control: POST /__mock/orders/:id/status `{status}`, /__mock/orders/behavior `{createStatus}`
  *     y /__mock/orders/reset
@@ -35,6 +36,7 @@ import { createDispatchStore } from './dispatch.ts';
 import { createInventoryStore } from './inventory.ts';
 import { buildMenu, type MockMenuItem } from './menu.ts';
 import { buildZones, createOrderStore, type OrderStatus } from './orders.ts';
+import { createProfileStore } from './profile.ts';
 
 export const MOCK_PASSWORD = 'Password-123456';
 const PREFIX = '/api/v1';
@@ -54,6 +56,8 @@ interface Customer {
   password: string;
   fullName: string;
   phone: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface RecordedRequest {
@@ -184,6 +188,8 @@ export async function startMockApi(
         password: MOCK_PASSWORD,
         fullName: 'Cliente Demo',
         phone: '+573001234567',
+        createdAt: '2026-11-03T15:00:00.000Z',
+        updatedAt: '2026-11-03T15:00:00.000Z',
       },
       {
         id: 'c-2',
@@ -191,11 +197,20 @@ export async function startMockApi(
         password: MOCK_PASSWORD,
         fullName: 'Correo Ocupado',
         phone: '+573001234568',
+        createdAt: '2026-11-03T15:00:00.000Z',
+        updatedAt: '2026-11-03T15:00:00.000Z',
       },
     );
   };
   resetCustomers();
 
+  const profileStore = createProfileStore(
+    () => customers,
+    (userId, keepToken) => {
+      for (const [token, user] of sessions)
+        if (user.id === userId && token !== keepToken) sessions.delete(token);
+    },
+  );
   const inventory = createInventoryStore(() => state.menu);
   const orderStore = createOrderStore(
     () => inventory.menu(),
@@ -262,6 +277,7 @@ export async function startMockApi(
       state.streamsFinished = 0;
       sessions.clear();
       resetCustomers();
+      profileStore.reset();
     },
     revokeAllSessions() {
       sessions.clear();
@@ -371,7 +387,13 @@ export async function startMockApi(
       return fail(res, 409, 'El correo ya está registrado');
     }
     counter += 1;
-    const created = { id: `c-${counter + 100}`, ...customer };
+    const nowIso = new Date().toISOString();
+    const created = {
+      id: `c-${counter + 100}`,
+      ...customer,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    };
     customers.push(created);
     send(res, 201, {
       id: created.id,
@@ -535,18 +557,27 @@ export async function startMockApi(
         return send(res, 204);
       case 'POST /customers':
         return register(res, parseJson(body));
-      case 'GET /customers/me': {
+      case 'GET /customers/me':
+      case 'PATCH /customers/me': {
         if (!session) return fail(res, 401, 'Unauthorized');
         if (session.user.role !== 'cliente')
           return fail(res, 403, 'Forbidden resource');
-        const customer = customers.find((c) => c.id === session.user.id);
-        if (!customer) return fail(res, 404, 'Cliente no encontrado');
-        return send(res, 200, {
-          id: customer.id,
-          email: customer.email,
-          fullName: customer.fullName,
-          phone: customer.phone,
-        });
+        const r =
+          req.method === 'PATCH'
+            ? profileStore.update(session.user.id, parseJson(body))
+            : profileStore.get(session.user.id);
+        return send(res, r.status, r.body);
+      }
+      case 'PATCH /auth/password': {
+        if (!session) return fail(res, 401, 'Unauthorized');
+        if (session.user.role !== 'cliente')
+          return fail(res, 403, 'Forbidden resource');
+        const r = profileStore.changePassword(
+          session.user.id,
+          session.token,
+          parseJson(body),
+        );
+        return send(res, r.status, r.body);
       }
       case 'GET /menu':
         if (state.behavior.menuDelayMs > 0) {
@@ -800,19 +831,27 @@ export async function startMockApi(
               : orderStore.kitchenReady(id);
           return send(res, r.status, r.body);
         }
-        const detail = /^\/orders\/([^/]+)(\/cancel)?$/.exec(
+        const detail = /^\/orders\/([^/]+)(\/cancel|\/survey)?$/.exec(
           url.pathname.slice(PREFIX.length),
         );
         if (detail) {
           if (!session) return fail(res, 401, 'Unauthorized');
           const [, id = '', cancel] = detail;
-          if (cancel && req.method === 'POST' && isStaff(session.user.role)) {
+          if (
+            cancel === '/cancel' &&
+            req.method === 'POST' &&
+            isStaff(session.user.role)
+          ) {
             const r = orderStore.cancelStaff(id, parseJson(body)?.reason);
             return send(res, r.status, r.body);
           }
           if (session.user.role !== 'cliente')
             return fail(res, 403, 'Forbidden resource');
-          if (cancel && req.method === 'POST') {
+          if (cancel === '/survey' && req.method === 'POST') {
+            const r = orderStore.survey(session.user.id, id, parseJson(body));
+            return send(res, r.status, r.body);
+          }
+          if (cancel === '/cancel' && req.method === 'POST') {
             const r = orderStore.cancel(session.user.id, id);
             return send(res, r.status, r.body);
           }

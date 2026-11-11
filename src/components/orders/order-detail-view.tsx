@@ -7,6 +7,7 @@ import { CourierCard } from '@/components/orders/courier-card';
 import { LiveBadge } from '@/components/orders/live-badge';
 import { OrderTimeline } from '@/components/orders/order-timeline';
 import { StatusBadge } from '@/components/orders/status-badge';
+import { SurveyCard } from '@/components/survey/survey-card';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -109,6 +110,12 @@ export function OrderDetailView({
         {isFinalStatus(order.status) ? null : <LiveBadge />}
       </div>
 
+      <div role="status" className="sr-only">
+        {order.status === 'entregado' && order.survey === null
+          ? `Tu pedido #${String(order.number)} fue entregado. ¡Cuéntanos qué tal estuvo!`
+          : ''}
+      </div>
+
       {order.cancelReason ? (
         <Alert>Motivo de la cancelación: {order.cancelReason}</Alert>
       ) : null}
@@ -173,6 +180,8 @@ export function OrderDetailView({
           <p className="text-sm text-muted-foreground">Nota: {order.note}</p>
         ) : null}
       </section>
+
+      <SurveyCard order={order} />
 
       <section aria-labelledby="pago-titulo" className={CARD}>
         <h2 id="pago-titulo" className={TITLE}>

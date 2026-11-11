@@ -113,7 +113,7 @@ export interface MockOrder {
   customer: { name: string; phone: string };
   cancelReason: string | null;
   failureReason: string | null;
-  survey: null;
+  survey: { rating: number; comment: string | null; createdAt: string } | null;
   events: { status: OrderStatus; at: string }[];
   createdAt: string;
   updatedAt: string;
@@ -331,6 +331,49 @@ export function createOrderStore(
     return ok(200, order);
   }
 
+  /** `POST /orders/:id/survey`: reglas y textos del back (`surveys.service.ts`). */
+  function survey(customerId: string, id: string, input: unknown): OrderResult {
+    if (!UUID.test(id)) return err(400, ['id debe ser un UUID']);
+    const body =
+      typeof input === 'object' && input !== null
+        ? (input as Record<string, unknown>)
+        : {};
+    const problems: string[] = [];
+    if (!isInt(body.rating, 1, 5))
+      problems.push('rating debe ser un número entero entre 1 y 5');
+    let comment: string | null = null;
+    if (body.comment !== undefined) {
+      const trimmed =
+        typeof body.comment === 'string' ? body.comment.trim() : body.comment;
+      if (typeof trimmed !== 'string' || /\u0000/.test(trimmed))
+        problems.push('comment debe ser un texto válido');
+      else if (trimmed.length < 1 || trimmed.length > 300)
+        problems.push('comment debe tener entre 1 y 300 caracteres');
+      else comment = trimmed;
+    }
+    if (problems.length > 0) return err(400, problems);
+    const order = owned(customerId).find((o) => o.id === id);
+    if (!order) return err(404, 'Pedido no encontrado.');
+    if (order.status !== 'entregado')
+      return err(
+        409,
+        `El pedido #${order.number} está en estado «${order.status}»; la encuesta se responde cuando está «entregado».`,
+      );
+    if (order.survey)
+      return err(409, 'Este pedido ya tiene una respuesta de la encuesta.');
+    order.survey = {
+      rating: body.rating as number,
+      comment,
+      createdAt: new Date().toISOString(),
+    };
+    return ok(201, {
+      orderId: order.id,
+      rating: order.survey.rating,
+      comment: order.survey.comment,
+      createdAt: order.survey.createdAt,
+    });
+  }
+
   /** Control para las pruebas: cambia el estado de cualquier pedido. */
   function advance(id: string, status: OrderStatus): OrderResult {
     const order = orders.find((o) => o.id === id);
@@ -412,6 +455,7 @@ export function createOrderStore(
     list,
     get,
     cancel,
+    survey,
     advance,
     reset,
     orders,

@@ -1,8 +1,7 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
 import { useSession } from '@/components/providers/session-provider';
-import { requestJson } from '@/lib/api/json';
+import { useProfile } from '@/lib/profile/use-profile';
 
 /**
  * Nombre para mostrar en pantalla. El personal (admin, operador, repartidor) tiene un
@@ -13,18 +12,9 @@ import { requestJson } from '@/lib/api/json';
 export function useDisplayName(): string | null {
   const { user } = useSession();
   const isCustomer = user.role === 'cliente';
-  const profile = useQuery({
-    queryKey: ['customers', 'me'],
-    queryFn: () =>
-      requestJson<{ fullName?: string }>('/api/customers/me', {
-        method: 'GET',
-      }),
-    enabled: isCustomer,
-    staleTime: 5 * 60_000,
-    retry: false,
-  });
+  const profile = useProfile(isCustomer);
 
   if (!isCustomer) return user.username;
-  const name = profile.data?.fullName?.trim();
+  const name = profile.data?.fullName.trim();
   return name ? name : null;
 }

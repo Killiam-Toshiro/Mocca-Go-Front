@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { jsonResponse } from '../../../tests/utils/render';
+import { setUnauthorizedHandler } from './browser-client';
 import { ApiError } from './errors';
 import { requestJson } from './json';
 
@@ -71,5 +72,31 @@ describe('requestJson', () => {
     await expect(requestJson('/x', { body: {} })).rejects.toMatchObject({
       status: 0,
     });
+  });
+
+  it('un 403 (p. ej. «contraseña actual incorrecta») no cierra la sesión: solo el 401 lo hace', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        jsonResponse(
+          { statusCode: 403, message: 'La contraseña actual no es correcta.' },
+          403,
+        ),
+      ),
+    );
+    const expired = vi.fn();
+    setUnauthorizedHandler(expired);
+    await expect(
+      requestJson('/api/auth/password', {
+        method: 'PATCH',
+        body: {},
+        handleUnauthorized: true,
+      }),
+    ).rejects.toMatchObject({
+      status: 403,
+      messages: ['La contraseña actual no es correcta.'],
+    });
+    setUnauthorizedHandler(null);
+    expect(expired).not.toHaveBeenCalled();
   });
 });

@@ -173,4 +173,67 @@ describe('pasarela por la ruta de Next (CA-15, CA-24)', () => {
     const body = (await response.json()) as { message: string[] };
     expect(body.message).toHaveLength(4);
   });
+
+  describe('cliente: perfil y contraseña por la pasarela (006)', () => {
+    async function customerCookie(): Promise<string> {
+      const login = await fetch(`${mock.url}/auth/login`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          email: 'cliente@example.com',
+          password: MOCK_PASSWORD,
+        }),
+      });
+      const { accessToken } = (await login.json()) as { accessToken: string };
+      return `session=${accessToken}`;
+    }
+    const patch = (path: string, cookie: string, body: unknown) =>
+      PATCH(
+        new Request(`http://${HOST}/api${path}`, {
+          method: 'PATCH',
+          headers: {
+            host: HOST,
+            origin: `http://${HOST}`,
+            'content-type': 'application/json',
+            cookie,
+          },
+          body: JSON.stringify(body),
+        }),
+      );
+
+    it('PATCH /api/auth/password pasa por la pasarela comodín (no solo login/logout)', async () => {
+      const cookie = await customerCookie();
+      const response = await patch('/auth/password', cookie, {
+        currentPassword: MOCK_PASSWORD,
+        newPassword: 'Otra-Clave-98765',
+      });
+      expect(response.status).toBe(204);
+      expect(mock.requests.at(-1)).toMatchObject({
+        method: 'PATCH',
+        path: '/api/v1/auth/password',
+      });
+    });
+
+    it('el 403 de «contraseña actual incorrecta» llega intacto y no borra la sesión', async () => {
+      const cookie = await customerCookie();
+      const response = await patch('/auth/password', cookie, {
+        currentPassword: 'Incorrecta-12345',
+        newPassword: 'Otra-Clave-98765',
+      });
+      expect(response.status).toBe(403);
+      expect(await response.json()).toMatchObject({
+        message: 'La contraseña actual no es correcta.',
+      });
+      expect(response.headers.get('set-cookie') ?? '').not.toMatch(/session=;/);
+    });
+
+    it('PATCH /api/customers/me llega al back', async () => {
+      const cookie = await customerCookie();
+      const response = await patch('/customers/me', cookie, {
+        phone: '300 765 4322',
+      });
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ phone: '+573007654322' });
+    });
+  });
 });

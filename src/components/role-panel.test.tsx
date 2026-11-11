@@ -40,7 +40,8 @@ describe('RolePanel', () => {
     );
     mount('cliente');
     expect(screen.queryByText('Usuarios')).not.toBeInTheDocument();
-    expect(screen.getByText('Mi perfil')).toBeInTheDocument();
+    // «Mi perfil» ya existe (006): no figura entre las secciones futuras.
+    expect(screen.queryByText('Mi perfil')).not.toBeInTheDocument();
   });
 
   describe('nombre del cliente (P-03)', () => {
