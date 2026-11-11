@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Pagination } from '@/components/ui/pagination';
 import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { describeApiError } from '@/lib/api/errors';
@@ -150,32 +151,14 @@ export function MovementHistory({ products }: { products: StaffProduct[] }) {
               />
             ))}
           </ul>
-          <nav
-            aria-label="Páginas del historial"
-            className="flex flex-wrap items-center gap-3"
-          >
-            <Button
-              type="button"
-              variant="outline"
-              className="h-12 text-base"
-              disabled={page <= 1}
-              onClick={() => setPage(page - 1)}
-            >
-              Anterior
-            </Button>
-            <span className="text-sm text-muted-foreground tabular-nums">
-              Página {data.page} de {Math.max(1, data.totalPages)}
-            </span>
-            <Button
-              type="button"
-              variant="outline"
-              className="h-12 text-base"
-              disabled={page >= data.totalPages}
-              onClick={() => setPage(page + 1)}
-            >
-              Siguiente
-            </Button>
-          </nav>
+          <Pagination
+            label="Páginas del historial"
+            page={page}
+            totalPages={data.totalPages}
+            total={data.total}
+            pageSize={data.limit}
+            onPageChange={setPage}
+          />
         </>
       )}
     </div>

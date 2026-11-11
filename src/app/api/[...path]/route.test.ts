@@ -174,6 +174,98 @@ describe('pasarela por la ruta de Next (CA-15, CA-24)', () => {
     expect(body.message).toHaveLength(4);
   });
 
+  describe('admin: usuarios por la pasarela (007a)', () => {
+    async function adminCookie(): Promise<string> {
+      const login = await fetch(`${mock.url}/auth/login`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ username: 'admin', password: MOCK_PASSWORD }),
+      });
+      const { accessToken } = (await login.json()) as { accessToken: string };
+      return `session=${accessToken}`;
+    }
+    const call = (
+      handler: typeof GET,
+      method: string,
+      path: string,
+      cookie: string,
+      body?: unknown,
+    ) =>
+      handler(
+        new Request(`http://${HOST}/api${path}`, {
+          method,
+          headers: {
+            host: HOST,
+            origin: `http://${HOST}`,
+            'content-type': 'application/json',
+            cookie,
+          },
+          ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+        }),
+      );
+
+    it('GET /api/users envía search y role al back y devuelve la página filtrada', async () => {
+      const cookie = await adminCookie();
+      const response = await call(
+        GET,
+        'GET',
+        '/users?page=1&limit=20&search=carlos&role=admin%2Coperador%2Crepartidor',
+        cookie,
+      );
+      expect(response.status).toBe(200);
+      const page = (await response.json()) as {
+        total: number;
+        data: { username: string }[];
+      };
+      expect(page.total).toBe(1);
+      expect(page.data[0]?.username).toBe('repartidor');
+      expect(mock.requests.at(-1)).toMatchObject({
+        path: '/api/v1/users',
+        query:
+          '?page=1&limit=20&search=carlos&role=admin%2Coperador%2Crepartidor',
+      });
+    });
+
+    it('un 400 del filtro llega intacto', async () => {
+      const cookie = await adminCookie();
+      const response = await call(GET, 'GET', '/users?role=jefe', cookie);
+      expect(response.status).toBe(400);
+    });
+
+    it('crea, cambia el rol y elimina por la pasarela', async () => {
+      const cookie = await adminCookie();
+      const created = await call(POST, 'POST', '/users', cookie, {
+        username: 'ruta.op',
+        password: 'clave-generica',
+        role: 'operador',
+      });
+      expect(created.status).toBe(201);
+      const { id } = (await created.json()) as { id: string };
+      const role = await call(PATCH, 'PATCH', `/users/${id}/role`, cookie, {
+        role: 'admin',
+      });
+      expect(role.status).toBe(200);
+      const edited = await call(PATCH, 'PATCH', `/users/${id}`, cookie, {
+        fullName: 'Ruta Admin',
+      });
+      expect(edited.status).toBe(200);
+      const removed = await call(DELETE, 'DELETE', `/users/${id}`, cookie);
+      expect(removed.status).toBe(204);
+    });
+
+    it('el 409 de cambiar el propio rol llega con el texto del back', async () => {
+      const cookie = await adminCookie();
+      const response = await call(
+        PATCH,
+        'PATCH',
+        '/users/u-admin/role',
+        cookie,
+        { role: 'operador' },
+      );
+      expect(response.status).toBe(409);
+    });
+  });
+
   describe('cliente: perfil y contraseña por la pasarela (006)', () => {
     async function customerCookie(): Promise<string> {
       const login = await fetch(`${mock.url}/auth/login`, {

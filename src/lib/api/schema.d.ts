@@ -126,7 +126,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Listar usuarios paginados (solo admin) */
+        /**
+         * Listar usuarios paginados (solo admin)
+         * @description Con `search` (usuario, nombre, teléfono y correo) y `role` (uno o varios separados por coma) el filtro lo hace el servidor; sin ellos devuelve todos, ordenados por `username`.
+         */
         get: operations["UsersController_list"];
         put?: never;
         /**
@@ -152,15 +155,15 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * Eliminar usuario sin movimientos (solo admin)
+         * Eliminar usuario sin historial (solo admin)
          * @description Sus sesiones dejan de ser válidas de inmediato.
          */
         delete: operations["UsersController_remove"];
         options?: never;
         head?: never;
         /**
-         * Editar username o contraseña (solo admin)
-         * @description No cambia el rol. Una contraseña nueva revoca las demás sesiones del usuario editado y reinicia su bloqueo de intentos.
+         * Editar username, contraseña, nombre o teléfono (solo admin)
+         * @description No cambia el rol. Una contraseña nueva revoca las demás sesiones del usuario editado y reinicia su bloqueo de intentos. En un cliente, nombre y teléfono se guardan en su ficha (2 a 100 caracteres de nombre; 2 a 80 en el personal) y el username no se edita.
          */
         patch: operations["UsersController_update"];
         trace?: never;
@@ -180,7 +183,7 @@ export interface paths {
         head?: never;
         /**
          * Cambiar rol (solo admin)
-         * @description Los nuevos permisos aplican desde la siguiente petición.
+         * @description Revoca todas las sesiones del usuario: debe iniciar sesión de nuevo y sus canales en vivo se cierran. Un admin no cambia su propio rol.
          */
         patch: operations["UsersController_changeRole"];
         trace?: never;
@@ -968,11 +971,11 @@ export interface components {
              */
             password?: string;
             /**
-             * @description Teléfono del personal (no aplica a clientes); se guarda en E.164.
+             * @description Teléfono de contacto (personal o cliente); se guarda en E.164.
              * @example +57 300 123 4567
              */
             phone?: string;
-            /** @description Nombre del personal (no aplica a clientes). */
+            /** @description Nombre de contacto: 2 a 80 caracteres para el personal y 2 a 100 para un cliente. */
             fullName?: string;
         };
         ChangeRoleDto: {
@@ -2087,6 +2090,10 @@ export interface operations {
                 page?: number;
                 /** @description Registros por página, en dígitos sin ceros iniciales. */
                 limit?: number;
+                /** @description Texto parcial, sin distinguir mayúsculas, en el usuario, el nombre, el teléfono y el correo del cliente. Con 3 o más dígitos también busca en los dígitos del teléfono. Si queda vacío tras recortarlo se ignora. */
+                search?: string;
+                /** @description Uno o varios roles separados por coma (`admin`, `operador`, `repartidor`, `cliente`); los repetidos cuentan una vez. */
+                role?: string;
             };
             header?: never;
             path?: never;
@@ -2303,7 +2310,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Es el último admin, es tu propio usuario o tiene movimientos. */
+            /** @description Es el último admin, es tu propio usuario o tiene historial (movimientos, pedidos, rondas o encuestas). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -2445,7 +2452,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description No se puede degradar al último admin registrado, o el usuario es un cliente. */
+            /** @description No se puede degradar al último admin, es tu propio rol o el usuario es un cliente. */
             409: {
                 headers: {
                     [name: string]: unknown;

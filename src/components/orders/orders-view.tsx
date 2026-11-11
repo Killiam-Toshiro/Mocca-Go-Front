@@ -16,7 +16,7 @@ export function OrdersView() {
   const orders = query.data?.pages.flatMap((page) => page.data) ?? [];
 
   return (
-    <div className="grid gap-6">
+    <div className="mx-auto grid w-full max-w-2xl gap-6">
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
         <h1 className="font-display text-3xl font-semibold">Mis pedidos</h1>
         <LiveBadge />

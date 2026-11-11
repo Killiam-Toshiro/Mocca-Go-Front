@@ -39,6 +39,12 @@ const NO_NUL = (value: string) => !value.includes('\u0000');
 export function createProfileStore(
   customers: () => ProfileCustomer[],
   revokeOthers: (userId: string, keepToken: string) => void,
+  /** Credenciales del personal (el cambio de contraseña es el mismo para todos los roles). */
+  staff: () => {
+    id: string;
+    password: string;
+    updatedAt?: string;
+  }[] = () => [],
 ) {
   /** Fallos de contraseña actual por usuario y bloqueo (15 min tras 5). */
   const failures = new Map<string, number>();
@@ -123,7 +129,9 @@ export function createProfileStore(
         problems.push(`${name} debe tener entre 12 y 128 caracteres`);
     }
     if (problems.length > 0) return err(400, problems);
-    const customer = customers().find((c) => c.id === userId);
+    const customer =
+      customers().find((c) => c.id === userId) ??
+      staff().find((u) => u.id === userId);
     if (!customer) return err(401, 'Credenciales inválidas.');
     const now = Date.now();
     if ((blocked.get(userId) ?? 0) > now)

@@ -66,12 +66,20 @@ describe('AppShell', () => {
       'aria-current',
       'page',
     );
+    expect(sidebar().getByRole('link', { name: 'Usuarios' })).toHaveAttribute(
+      'href',
+      '/admin/usuarios',
+    );
+    expect(sidebar().getByRole('link', { name: 'Mi cuenta' })).toHaveAttribute(
+      'href',
+      '/admin/cuenta',
+    );
     expect(
-      sidebar().queryByRole('link', { name: 'Usuarios' }),
+      sidebar().queryByRole('link', { name: 'Catálogo' }),
     ).not.toBeInTheDocument();
-    const usuarios = sidebar().getByText('Usuarios').closest('[aria-disabled]');
-    expect(usuarios).toHaveAttribute('aria-disabled', 'true');
-    expect(sidebar().getAllByText('Próximamente')).toHaveLength(6);
+    const catalogo = sidebar().getByText('Catálogo').closest('[aria-disabled]');
+    expect(catalogo).toHaveAttribute('aria-disabled', 'true');
+    expect(sidebar().getAllByText('Próximamente')).toHaveLength(5);
   });
 
   it.each([

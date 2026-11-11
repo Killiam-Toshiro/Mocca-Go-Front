@@ -25,7 +25,10 @@ Plantillas en `specs/_templates/`.
 | 004c | Producción del día (inventario como abasto de cocina) | implementado; falta tu prueba manual y revisión |
 | 005 | Repartidor (cola de despacho y rondas) | implementado; falta tu prueba manual y revisión |
 | 006 | Cliente: encuesta y perfil | implementado; falta tu prueba manual y revisión |
-| 007 | Admin: catálogo, zonas, usuarios | pendiente |
+| 007a | Admin: usuarios | implementado; falta tu prueba manual y revisión |
+| 007b | Admin: catálogo y combos | pendiente |
+| 007c | Admin: zonas y puntos de entrega | pendiente |
+| 007d | Admin y operador: pedidos y rondas | pendiente |
 | 008 | Admin: encuestas y panel de métricas | pendiente |
 | 009 | Despliegue | pendiente |
 

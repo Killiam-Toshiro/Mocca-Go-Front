@@ -47,6 +47,8 @@ export interface OrderAccess {
 export function createDispatchStore(
   access: OrderAccess,
   zones: () => MockZone[],
+  /** Contacto del repartidor según el almacén de usuarios (si existe); manda sobre los datos de demostración. */
+  contacts?: (courierId: string) => Profile | undefined,
 ) {
   const rounds: MockRound[] = [];
   const roundOf = new Map<string, string>();
@@ -57,7 +59,8 @@ export function createDispatchStore(
   };
   const profiles = new Map<string, Profile>();
   const profileOf = (courierId: string): Profile =>
-    profiles.get(courierId) ?? { ...(FULL[courierId] ?? FULL[OWN]!) };
+    profiles.get(courierId) ??
+    contacts?.(courierId) ?? { ...(FULL[courierId] ?? FULL[OWN]!) };
   /** Para aislar las pruebas E2E en paralelo: cada repartidor puede ver solo ciertos pedidos. */
   const scopes = new Map<string, Set<string>>();
 

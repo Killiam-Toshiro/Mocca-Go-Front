@@ -23,12 +23,22 @@ describe('NAV', () => {
       const enabled = NAV[role].filter((i) => i.enabled).map((i) => i.label);
       const expected: Record<(typeof ROLES)[number], string[]> = {
         cliente: ['Inicio', 'Menú', 'Mis pedidos', 'Mi perfil'],
-        operador: ['Inicio', 'Cocina', 'Productos', 'Inventario'],
-        admin: ['Inicio', 'Cocina', 'Inventario'],
-        repartidor: ['Inicio', 'Cola de despacho', 'Mis rondas'],
+        operador: ['Inicio', 'Cocina', 'Productos', 'Inventario', 'Mi cuenta'],
+        admin: ['Inicio', 'Cocina', 'Inventario', 'Usuarios', 'Mi cuenta'],
+        repartidor: ['Inicio', 'Cola de despacho', 'Mis rondas', 'Mi cuenta'],
       };
       expect(enabled).toEqual(expected[role]);
     }
+  });
+
+  it('«Mi cuenta» existe para el personal y no para el cliente (007a)', () => {
+    for (const role of ['admin', 'operador', 'repartidor'] as const)
+      expect(NAV[role]).toContainEqual({
+        href: `/${role}/cuenta`,
+        label: 'Mi cuenta',
+        enabled: true,
+      });
+    expect(NAV.cliente.map((i) => i.label)).not.toContain('Mi cuenta');
   });
 
   it('cada rol ve únicamente sus secciones', () => {

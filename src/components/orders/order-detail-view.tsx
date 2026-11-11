@@ -43,7 +43,7 @@ export function OrderDetailView({
       <div
         aria-busy="true"
         aria-label="Cargando el pedido"
-        className="grid gap-4"
+        className="mx-auto grid w-full max-w-2xl gap-4"
       >
         <Skeleton className="h-10 w-64" />
         <Skeleton className="h-40 w-full" />
@@ -56,7 +56,7 @@ export function OrderDetailView({
       isApiError(query.error) &&
       (query.error.status === 404 || query.error.status === 400);
     return (
-      <div className="grid justify-items-start gap-3">
+      <div className="mx-auto grid w-full max-w-2xl justify-items-start gap-3">
         <h1 className="font-display text-3xl font-semibold">Pedido</h1>
         {notFound ? (
           <p>No encontramos este pedido.</p>
@@ -85,7 +85,7 @@ export function OrderDetailView({
 
   const { delivery, payment } = order;
   return (
-    <div className="grid gap-6">
+    <div className="mx-auto grid w-full max-w-2xl gap-6">
       {isNew ? (
         <Alert role="status" className="font-semibold">
           ¡Pedido #{order.number} recibido! Te avisaremos cuando cambie de

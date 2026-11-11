@@ -37,6 +37,7 @@ import { createInventoryStore } from './inventory.ts';
 import { buildMenu, type MockMenuItem } from './menu.ts';
 import { buildZones, createOrderStore, type OrderStatus } from './orders.ts';
 import { createProfileStore } from './profile.ts';
+import { createUserStore } from './users.ts';
 
 export const MOCK_PASSWORD = 'Password-123456';
 const PREFIX = '/api/v1';
@@ -104,24 +105,6 @@ export interface MockApi {
 export function internalUsername(email: string): string {
   return createHash('sha1').update(email).digest('hex').slice(0, 17);
 }
-
-const STAFF: MockUser[] = [
-  { id: 'u-admin', username: 'admin', role: 'admin', expiresIn: 900 },
-  { id: 'u-operador', username: 'operador', role: 'operador', expiresIn: 900 },
-  {
-    id: 'u-repartidor',
-    username: 'repartidor',
-    role: 'repartidor',
-    expiresIn: 900,
-  },
-  {
-    id: 'u-repartidor-2',
-    username: 'repartidor2',
-    role: 'repartidor',
-    expiresIn: 900,
-  },
-  { id: 'u-corta', username: 'corta', role: 'operador', expiresIn: 3 },
-];
 
 function send(res: ServerResponse, status: number, body?: unknown): void {
   if (body === undefined) {
@@ -204,12 +187,22 @@ export async function startMockApi(
   };
   resetCustomers();
 
+  const users = createUserStore(
+    () => customers,
+    internalUsername,
+    (userId) => {
+      for (const [token, user] of sessions)
+        if (user.id === userId) sessions.delete(token);
+    },
+    MOCK_PASSWORD,
+  );
   const profileStore = createProfileStore(
     () => customers,
     (userId, keepToken) => {
       for (const [token, user] of sessions)
         if (user.id === userId && token !== keepToken) sessions.delete(token);
     },
+    () => users.staff(),
   );
   const inventory = createInventoryStore(() => state.menu);
   const orderStore = createOrderStore(
@@ -228,7 +221,11 @@ export async function startMockApi(
     },
   );
 
-  const dispatch = createDispatchStore(orderStore, () => buildZones());
+  const dispatch = createDispatchStore(
+    orderStore,
+    () => buildZones(),
+    (id) => users.contactOf(id),
+  );
 
   /** Canales SSE abiertos (`/orders/stream` en modo `live`). */
   const channels = new Set<{
@@ -277,6 +274,7 @@ export async function startMockApi(
       state.streamsFinished = 0;
       sessions.clear();
       resetCustomers();
+      users.reset();
       profileStore.reset();
     },
     revokeAllSessions() {
@@ -329,8 +327,14 @@ export async function startMockApi(
       return fail(res, 429, 'ThrottlerException: Too Many Requests');
 
     if (text(username)) {
-      const user = STAFF.find((u) => u.username === username);
-      if (user && password === MOCK_PASSWORD) return issue(res, user);
+      const user = users.staff().find((u) => u.username === username);
+      if (user && password === user.password)
+        return issue(res, {
+          id: user.id,
+          username: user.username,
+          role: user.role,
+          expiresIn: user.expiresIn,
+        });
     } else if (text(email)) {
       const customer = customers.find((c) => c.email === email);
       if (customer && customer.password === password) {
@@ -518,8 +522,12 @@ export async function startMockApi(
       const courier = text(change?.courier) ? change.courier : undefined;
       if (change?.reset === true) dispatch.reset();
       if (change?.profile === 'incompleto')
-        dispatch.setProfile({ fullName: null, phone: null }, courier);
-      if (change?.profile === 'completo') dispatch.restoreProfile(courier);
+        users.setContact(courier ?? 'u-repartidor', {
+          fullName: null,
+          phone: null,
+        });
+      if (change?.profile === 'completo')
+        users.restoreContact(courier ?? 'u-repartidor');
       if (change && 'scope' in change) {
         const scope = change.scope;
         dispatch.setScope(
@@ -570,8 +578,6 @@ export async function startMockApi(
       }
       case 'PATCH /auth/password': {
         if (!session) return fail(res, 401, 'Unauthorized');
-        if (session.user.role !== 'cliente')
-          return fail(res, 403, 'Forbidden resource');
         const r = profileStore.changePassword(
           session.user.id,
           session.token,
@@ -627,10 +633,16 @@ export async function startMockApi(
         return send(res, result.status, result.body);
       }
       case 'GET /users':
+      case 'POST /users': {
         if (!session) return fail(res, 401, 'Unauthorized');
         if (session.user.role !== 'admin')
           return fail(res, 403, 'Forbidden resource');
-        return send(res, 200, []);
+        const r =
+          req.method === 'POST'
+            ? users.create(parseJson(body))
+            : users.list(url.searchParams);
+        return send(res, r.status, r.body);
+      }
       case 'GET /orders/stream': {
         if (!session) return fail(res, 401, 'Unauthorized');
         if (state.behavior.streamMode === 'live') {
@@ -784,6 +796,25 @@ export async function startMockApi(
       }
       default: {
         const dispatchPath = url.pathname.slice(PREFIX.length);
+        const userRoute = /^\/users\/([^/]+)(\/role)?$/.exec(dispatchPath);
+        if (userRoute) {
+          const target = decodeURIComponent(userRoute[1] ?? '');
+          const isRole = userRoute[2] !== undefined;
+          const allowed =
+            (isRole && req.method === 'PATCH') ||
+            (!isRole && (req.method === 'PATCH' || req.method === 'DELETE'));
+          if (allowed) {
+            if (!session) return fail(res, 401, 'Unauthorized');
+            if (session.user.role !== 'admin')
+              return fail(res, 403, 'Forbidden resource');
+            const r = isRole
+              ? users.changeRole(target, session.user.id, parseJson(body))
+              : req.method === 'DELETE'
+                ? users.remove(target, session.user.id)
+                : users.update(target, parseJson(body));
+            return send(res, r.status, r.body);
+          }
+        }
         const roundDetail = /^\/dispatch\/rounds\/([^/]+)$/.exec(dispatchPath);
         const closeOrder = /^\/dispatch\/orders\/([^/]+)\/(deliver|fail)$/.exec(
           dispatchPath,
