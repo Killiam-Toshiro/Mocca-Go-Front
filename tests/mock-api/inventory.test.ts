@@ -121,3 +121,164 @@ describe('almacén de inventario del mock', () => {
     );
   });
 });
+
+describe('escritura del catálogo en el mock (reglas del back)', () => {
+  let items = buildMenu();
+  let store = createInventoryStore(() => items);
+  beforeEach(() => {
+    items = buildMenu();
+    store = createInventoryStore(() => items);
+  });
+  const pid = (sku: string) => items.find((p) => p.sku === sku)!.id;
+  const msg = (r: { body: unknown }) =>
+    (r.body as { message: string | string[] }).message;
+  const simple = {
+    sku: 'NEW-1',
+    name: 'Nuevo',
+    category: 'snack',
+    price: 3000,
+    cost: 1000,
+  };
+
+  it('crea un simple con saldo 0, activo, y lo valida', () => {
+    const r = store.createProduct(simple);
+    expect(r.status).toBe(201);
+    expect(r.body).toMatchObject({
+      sku: 'NEW-1',
+      stock: 0,
+      active: true,
+      cost: 1000,
+      costPercent: 33.3,
+      description: null,
+      components: [],
+    });
+    expect(store.createProduct(simple).status).toBe(409);
+    expect(msg(store.createProduct(simple))).toBe('El SKU ya existe.');
+    expect(msg(store.createProduct({ ...simple, sku: 'x', price: 0 }))).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('sku'),
+        expect.stringContaining('price'),
+      ]),
+    );
+    expect(msg(store.createProduct({ ...simple, cost: undefined }))).toBe(
+      'El costo es obligatorio.',
+    );
+  });
+
+  it('crea un combo con precio por defecto = suma, costo calculado y reglas de componentes', () => {
+    const base = {
+      sku: 'CMB-NEW',
+      name: 'Combo nuevo',
+      category: 'combo',
+      components: [
+        { productId: pid('CAF-ESPR'), quantity: 2 },
+        { productId: pid('PAN-PAND'), quantity: 1 },
+      ],
+    };
+    const r = store.createProduct(base);
+    expect(r.status).toBe(201);
+    expect(r.body).toMatchObject({
+      price: 8500,
+      cost: Math.round(3000 * 0.35) * 2 + Math.round(2500 * 0.35),
+    });
+    expect(store.createProduct({ ...base, sku: 'C2', cost: 5 }).status).toBe(
+      400,
+    );
+    expect(
+      msg(
+        store.createProduct({
+          ...base,
+          sku: 'C3',
+          components: [base.components[0]],
+        }),
+      ),
+    ).toBe('Un combo lleva entre 2 y 10 componentes.');
+    expect(
+      msg(
+        store.createProduct({
+          ...base,
+          sku: 'C4',
+          components: [base.components[0], base.components[0]],
+        }),
+      ),
+    ).toBe('No repitas productos en la composición.');
+    expect(
+      msg(
+        store.createProduct({
+          ...base,
+          sku: 'C5',
+          components: [
+            base.components[0],
+            { productId: pid('CMB-CLAS'), quantity: 1 },
+          ],
+        }),
+      ),
+    ).toBe('El componente CMB-CLAS es un combo; un combo no contiene combos.');
+    store.setStatus(pid('PAN-PAND'), { active: false });
+    expect(msg(store.createProduct({ ...base, sku: 'C6' }))).toBe(
+      'El componente PAN-PAND está inactivo.',
+    );
+  });
+
+  it('edita sin tocar el precio del combo al recomponer; rechaza costo de combo y cambio de tipo', () => {
+    const combo = pid('CMB-CLAS');
+    expect(store.updateProduct(combo, { cost: 1 }).status).toBe(400);
+    expect(msg(store.updateProduct(combo, { category: 'snack' }))).toBe(
+      'Un producto no se convierte en combo ni a la inversa.',
+    );
+    expect(msg(store.updateProduct(combo, {}))).toBe(
+      'Indica al menos un campo para editar.',
+    );
+    const r = store.replaceComponents(combo, {
+      components: [
+        { productId: pid('CAF-ESPR'), quantity: 1 },
+        { productId: pid('PAS-BROW'), quantity: 3 },
+      ],
+    });
+    expect(r.status).toBe(200);
+    expect((r.body as { price: number }).price).toBe(6500);
+    expect(
+      store.replaceComponents(pid('CAF-ESPR'), { components: [] }).status,
+    ).toBe(400);
+    expect(
+      msg(
+        store.replaceComponents(pid('CAF-ESPR'), {
+          components: [
+            { productId: pid('CAF-AMER'), quantity: 1 },
+            { productId: pid('CAF-LATT'), quantity: 1 },
+          ],
+        }),
+      ),
+    ).toBe('El producto no es un combo.');
+    const edited = store.updateProduct(pid('CAF-ESPR'), {
+      name: 'Espresso doble',
+      description: null,
+      cost: 900,
+    });
+    expect(edited.body).toMatchObject({
+      name: 'Espresso doble',
+      description: null,
+      cost: 900,
+    });
+    expect(store.updateProduct('nope', { name: 'x' }).status).toBe(404);
+  });
+
+  it('eliminar: bloquea componentes y productos con movimientos; borra los libres', () => {
+    expect(msg(store.removeProduct(pid('CAF-CAPU')))).toBe(
+      'El producto es componente de un combo.',
+    );
+    store.createProduct(simple);
+    const id = items.find((p) => p.sku === 'NEW-1')!.id;
+    store.createMovement(USER, {
+      productId: id,
+      type: 'IN',
+      quantity: 3,
+      reason: 'entrada',
+    });
+    expect(msg(store.removeProduct(id))).toContain('tiene movimientos');
+    store.createProduct({ ...simple, sku: 'NEW-2' });
+    const free = items.find((p) => p.sku === 'NEW-2')!.id;
+    expect(store.removeProduct(free).status).toBe(204);
+    expect(store.removeProduct(free).status).toBe(404);
+  });
+});

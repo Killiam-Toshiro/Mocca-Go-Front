@@ -697,6 +697,13 @@ export async function startMockApi(
             : inventory.listMovements(url.searchParams);
         return send(res, r.status, r.body);
       }
+      case 'POST /products': {
+        if (!session) return fail(res, 401, 'Unauthorized');
+        if (session.user.role !== 'admin')
+          return fail(res, 403, 'Forbidden resource');
+        const r = inventory.createProduct(parseJson(body));
+        return send(res, r.status, r.body);
+      }
       case 'POST /movements': {
         if (!session) return fail(res, 401, 'Unauthorized');
         if (!isStaff(session.user.role))
@@ -836,6 +843,36 @@ export async function startMockApi(
                   parseJson(body),
                 );
           return send(res, r.status, r.body);
+        }
+        const productRoute =
+          /^\/products\/([^/]+)(\/status|\/components)?$/.exec(
+            url.pathname.slice(PREFIX.length),
+          );
+        if (productRoute) {
+          const [, id = '', sub] = productRoute;
+          const wanted =
+            sub === '/status'
+              ? 'PATCH'
+              : sub === '/components'
+                ? 'PUT'
+                : ['PATCH', 'DELETE'];
+          if (
+            (Array.isArray(wanted) && wanted.includes(req.method ?? '')) ||
+            req.method === wanted
+          ) {
+            if (!session) return fail(res, 401, 'Unauthorized');
+            if (session.user.role !== 'admin')
+              return fail(res, 403, 'Forbidden resource');
+            const r =
+              sub === '/status'
+                ? inventory.setStatus(id, parseJson(body))
+                : sub === '/components'
+                  ? inventory.replaceComponents(id, parseJson(body))
+                  : req.method === 'DELETE'
+                    ? inventory.removeProduct(id)
+                    : inventory.updateProduct(id, parseJson(body));
+            return send(res, r.status, r.body);
+          }
         }
         const soldOut = /^\/products\/([^/]+)\/sold-out$/.exec(
           url.pathname.slice(PREFIX.length),

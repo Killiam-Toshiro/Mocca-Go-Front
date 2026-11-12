@@ -266,6 +266,114 @@ describe('pasarela por la ruta de Next (CA-15, CA-24)', () => {
     });
   });
 
+  describe('admin: catálogo por la pasarela (007b)', () => {
+    async function adminCookie(): Promise<string> {
+      const login = await fetch(`${mock.url}/auth/login`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ username: 'admin', password: MOCK_PASSWORD }),
+      });
+      const { accessToken } = (await login.json()) as { accessToken: string };
+      return `session=${accessToken}`;
+    }
+    const call = (
+      handler: typeof GET,
+      method: string,
+      path: string,
+      cookie: string,
+      body?: unknown,
+    ) =>
+      handler(
+        new Request(`http://${HOST}/api${path}`, {
+          method,
+          headers: {
+            host: HOST,
+            origin: `http://${HOST}`,
+            'content-type': 'application/json',
+            cookie,
+          },
+          ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+        }),
+      );
+
+    it('GET /api/products envía search, category y active al back', async () => {
+      const cookie = await adminCookie();
+      const response = await call(
+        GET,
+        'GET',
+        '/products?page=1&limit=20&search=espresso&category=cafe&active=true',
+        cookie,
+      );
+      expect(response.status).toBe(200);
+      const page = (await response.json()) as { total: number };
+      expect(page.total).toBe(1);
+      expect(mock.requests.at(-1)).toMatchObject({
+        path: '/api/v1/products',
+        query: '?page=1&limit=20&search=espresso&category=cafe&active=true',
+      });
+    });
+
+    it('crea, edita, cambia estado, recompone y elimina por la pasarela', async () => {
+      const cookie = await adminCookie();
+      const part = async (sku: string) => {
+        const r = await call(GET, 'GET', `/products?search=${sku}`, cookie);
+        return ((await r.json()) as { data: { id: string }[] }).data[0]!.id;
+      };
+      const created = await call(POST, 'POST', '/products', cookie, {
+        sku: 'RUTA-1',
+        name: 'Ruta',
+        category: 'snack',
+        price: 2000,
+        cost: 500,
+      });
+      expect(created.status).toBe(201);
+      const { id } = (await created.json()) as { id: string };
+      expect(
+        (await call(PATCH, 'PATCH', `/products/${id}`, cookie, { price: 2500 }))
+          .status,
+      ).toBe(200);
+      expect(
+        (
+          await call(PATCH, 'PATCH', `/products/${id}/status`, cookie, {
+            active: false,
+          })
+        ).status,
+      ).toBe(200);
+      const combo = await part('CMB-CLAS');
+      const put = await call(
+        PUT,
+        'PUT',
+        `/products/${combo}/components`,
+        cookie,
+        {
+          components: [
+            { productId: await part('CAF-ESPR'), quantity: 1 },
+            { productId: await part('PAS-BROW'), quantity: 1 },
+          ],
+        },
+      );
+      expect(put.status).toBe(200);
+      expect(
+        (await call(DELETE, 'DELETE', `/products/${id}`, cookie)).status,
+      ).toBe(204);
+    });
+
+    it('el 409 de SKU repetido llega con el texto del back', async () => {
+      const cookie = await adminCookie();
+      const response = await call(POST, 'POST', '/products', cookie, {
+        sku: 'CAF-ESPR',
+        name: 'Otro',
+        category: 'cafe',
+        price: 1000,
+        cost: 100,
+      });
+      expect(response.status).toBe(409);
+      expect(((await response.json()) as { message: string }).message).toBe(
+        'El SKU ya existe.',
+      );
+    });
+  });
+
   describe('cliente: perfil y contraseña por la pasarela (006)', () => {
     async function customerCookie(): Promise<string> {
       const login = await fetch(`${mock.url}/auth/login`, {

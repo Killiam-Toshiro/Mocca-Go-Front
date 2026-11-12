@@ -50,7 +50,7 @@ export const NAV: Record<Role, NavItem[]> = {
     { href: '/admin/inventario', label: 'Inventario', enabled: true },
     soon('/admin/metricas', 'Métricas'),
     soon('/admin/pedidos', 'Pedidos'),
-    soon('/admin/catalogo', 'Catálogo'),
+    { href: '/admin/catalogo', label: 'Catálogo', enabled: true },
     soon('/admin/zonas', 'Zonas y puntos'),
     { href: '/admin/usuarios', label: 'Usuarios', enabled: true },
     soon('/admin/encuestas', 'Encuestas'),

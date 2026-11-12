@@ -74,12 +74,18 @@ describe('AppShell', () => {
       'href',
       '/admin/cuenta',
     );
+    expect(sidebar().getByRole('link', { name: 'Catálogo' })).toHaveAttribute(
+      'href',
+      '/admin/catalogo',
+    );
     expect(
-      sidebar().queryByRole('link', { name: 'Catálogo' }),
+      sidebar().queryByRole('link', { name: 'Zonas y puntos' }),
     ).not.toBeInTheDocument();
-    const catalogo = sidebar().getByText('Catálogo').closest('[aria-disabled]');
-    expect(catalogo).toHaveAttribute('aria-disabled', 'true');
-    expect(sidebar().getAllByText('Próximamente')).toHaveLength(5);
+    const zonas = sidebar()
+      .getByText('Zonas y puntos')
+      .closest('[aria-disabled]');
+    expect(zonas).toHaveAttribute('aria-disabled', 'true');
+    expect(sidebar().getAllByText('Próximamente')).toHaveLength(4);
   });
 
   it.each([

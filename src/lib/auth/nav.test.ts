@@ -24,7 +24,14 @@ describe('NAV', () => {
       const expected: Record<(typeof ROLES)[number], string[]> = {
         cliente: ['Inicio', 'Menú', 'Mis pedidos', 'Mi perfil'],
         operador: ['Inicio', 'Cocina', 'Productos', 'Inventario', 'Mi cuenta'],
-        admin: ['Inicio', 'Cocina', 'Inventario', 'Usuarios', 'Mi cuenta'],
+        admin: [
+          'Inicio',
+          'Cocina',
+          'Inventario',
+          'Catálogo',
+          'Usuarios',
+          'Mi cuenta',
+        ],
         repartidor: ['Inicio', 'Cola de despacho', 'Mis rondas', 'Mi cuenta'],
       };
       expect(enabled).toEqual(expected[role]);

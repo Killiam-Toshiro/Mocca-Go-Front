@@ -28,11 +28,12 @@ describe('RolePanel', () => {
   it('lista las secciones futuras del rol como deshabilitadas', () => {
     mount('admin');
     const section = screen.getByRole('region', { name: 'Próximamente' });
-    expect(section.querySelectorAll('li')).toHaveLength(5);
-    expect(section.querySelectorAll('[aria-disabled="true"]')).toHaveLength(5);
-    expect(screen.getByText('Catálogo')).toBeInTheDocument();
-    // «Usuarios» ya existe (007a): no figura entre las secciones futuras.
+    expect(section.querySelectorAll('li')).toHaveLength(4);
+    expect(section.querySelectorAll('[aria-disabled="true"]')).toHaveLength(4);
+    expect(screen.getByText('Zonas y puntos')).toBeInTheDocument();
+    // «Usuarios» (007a) y «Catálogo» (007b) ya existen: no figuran entre las secciones futuras.
     expect(screen.queryByText('Usuarios')).not.toBeInTheDocument();
+    expect(screen.queryByText('Catálogo')).not.toBeInTheDocument();
   });
 
   it('un cliente no ve secciones de administración', () => {
