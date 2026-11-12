@@ -299,6 +299,47 @@ export function createOrderStore(
     return order ? ok(200, order) : err(404, 'Pedido no encontrado');
   }
 
+  const STATUSES: string[] = [
+    'recibido',
+    'en_preparacion',
+    'listo',
+    'en_camino',
+    'entregado',
+    'no_entregado',
+    'cancelado',
+  ];
+
+  /** `GET /orders` de admin y operador: todos los pedidos de todos los clientes. */
+  function listAll(
+    page: number,
+    limit: number,
+    status: string | null,
+  ): OrderResult {
+    if (status !== null && !STATUSES.includes(status))
+      return err(400, ['status inválido']);
+    if (!Number.isInteger(page) || page < 1 || !Number.isInteger(limit))
+      return err(400, ['page o limit inválidos']);
+    if (limit < 1 || limit > 100) return err(400, ['page o limit inválidos']);
+    const all = orders
+      .filter((o) => (status ? o.status === status : true))
+      .sort((a, b) => b.number - a.number);
+    const start = (page - 1) * limit;
+    return ok(200, {
+      page,
+      limit,
+      total: all.length,
+      totalPages: Math.ceil(all.length / limit),
+      data: all.slice(start, start + limit),
+    });
+  }
+
+  /** `GET /orders/:id` de admin y operador: cualquier pedido. */
+  function getAny(id: string): OrderResult {
+    if (!UUID.test(id)) return err(400, ['id debe ser un UUID']);
+    const order = orders.find((o) => o.id === id);
+    return order ? ok(200, order) : err(404, 'Pedido no encontrado.');
+  }
+
   function setStatus(order: MockOrder, status: OrderStatus): void {
     const at = new Date().toISOString();
     order.status = status;
@@ -431,12 +472,17 @@ export function createOrderStore(
   /** Cancelación del personal: en recibido o en preparación y con motivo. */
   function cancelStaff(id: string, reason: unknown): OrderResult {
     if (!UUID.test(id)) return err(400, ['id debe ser un UUID']);
+    if (reason === undefined)
+      return err(400, 'Indica el motivo de la cancelación.');
     if (typeof reason !== 'string' || reason.length < 1 || reason.length > 200)
       return err(400, ['reason debe tener entre 1 y 200 caracteres']);
     const order = orders.find((o) => o.id === id);
-    if (!order) return err(404, 'Pedido no encontrado');
+    if (!order) return err(404, 'Pedido no encontrado.');
     if (order.status !== 'recibido' && order.status !== 'en_preparacion')
-      return err(409, 'El pedido no se puede cancelar en su estado actual');
+      return err(
+        409,
+        `El pedido no se puede cancelar en estado «${order.status}».`,
+      );
     setStatus(order, 'cancelado');
     order.payment.status = 'reembolsado';
     order.cancelReason = reason;
@@ -454,6 +500,8 @@ export function createOrderStore(
     create,
     list,
     get,
+    listAll,
+    getAny,
     cancel,
     survey,
     advance,

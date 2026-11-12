@@ -85,7 +85,7 @@ describe('AppShell', () => {
       .getByText('Zonas y puntos')
       .closest('[aria-disabled]');
     expect(zonas).toHaveAttribute('aria-disabled', 'true');
-    expect(sidebar().getAllByText('Próximamente')).toHaveLength(4);
+    expect(sidebar().getAllByText('Próximamente')).toHaveLength(3);
   });
 
   it.each([

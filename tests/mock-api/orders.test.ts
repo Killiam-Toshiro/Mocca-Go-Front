@@ -257,4 +257,50 @@ describe('mock de pedidos', () => {
       });
     });
   });
+
+  describe('pedidos del personal (007d)', () => {
+    it('listAll trae los pedidos de todos los clientes, el más reciente primero, con filtro y validación', () => {
+      const s = store();
+      const a = s.create(me, KEY, body()).body as { id: string };
+      const other = { id: 'c-2', name: 'Otra Persona', phone: '+573009998877' };
+      s.create(other, '9c2f7a9f-1b1d-4a4f-8e6f-1b2c3d4e5f60', body());
+      s.kitchenStart(a.id);
+      const all = s.listAll(1, 20, null).body as {
+        total: number;
+        data: { number: number; customer: { name: string } }[];
+      };
+      expect(all.total).toBe(2);
+      expect(all.data.map((o) => o.number)).toEqual([1002, 1001]);
+      expect(all.data[0]?.customer.name).toBe('Otra Persona');
+      const prep = s.listAll(1, 20, 'en_preparacion').body as { total: number };
+      expect(prep.total).toBe(1);
+      expect(s.listAll(1, 20, 'raro').status).toBe(400);
+      expect(s.listAll(0, 20, null).status).toBe(400);
+      expect(s.listAll(1, 101, null).status).toBe(400);
+    });
+
+    it('getAny devuelve cualquier pedido; 400 si no es UUID y 404 si no existe', () => {
+      const s = store();
+      const a = s.create(me, KEY, body()).body as { id: string };
+      expect(s.getAny(a.id).status).toBe(200);
+      expect(s.getAny('x').status).toBe(400);
+      const missing = s.getAny('0b1f6f8e-9a0c-4f3e-9d5e-0a1b2c3d4e5f');
+      expect(missing.status).toBe(404);
+      expect((missing.body as { message: string }).message).toBe(
+        'Pedido no encontrado.',
+      );
+    });
+
+    it('cancelStaff usa los textos del back: sin motivo, 404 y estado en el 409', () => {
+      const s = store();
+      const a = s.create(me, KEY, body()).body as { id: string };
+      expect(
+        (s.cancelStaff(a.id, undefined).body as { message: string }).message,
+      ).toBe('Indica el motivo de la cancelación.');
+      s.advance(a.id, 'listo');
+      expect(
+        (s.cancelStaff(a.id, 'x').body as { message: string }).message,
+      ).toBe('El pedido no se puede cancelar en estado «listo».');
+    });
+  });
 });

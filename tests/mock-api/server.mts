@@ -617,6 +617,14 @@ export async function startMockApi(
       }
       case 'GET /orders': {
         if (!session) return fail(res, 401, 'Unauthorized');
+        if (isStaff(session.user.role)) {
+          const r = orderStore.listAll(
+            Number(url.searchParams.get('page') ?? 1),
+            Number(url.searchParams.get('limit') ?? 20),
+            url.searchParams.get('status'),
+          );
+          return send(res, r.status, r.body);
+        }
         if (session.user.role !== 'cliente')
           return fail(res, 403, 'Forbidden resource');
         const page = Math.max(1, Number(url.searchParams.get('page') ?? 1));
@@ -774,6 +782,10 @@ export async function startMockApi(
       }
       case 'GET /dispatch/rounds': {
         if (!session) return fail(res, 401, 'Unauthorized');
+        if (isStaff(session.user.role)) {
+          const r = dispatch.listAllRounds(url.searchParams);
+          return send(res, r.status, r.body);
+        }
         if (session.user.role !== 'repartidor')
           return fail(res, 403, 'Forbidden resource');
         const r = dispatch.listRounds(session.user.id, url.searchParams);
@@ -831,6 +843,10 @@ export async function startMockApi(
           (closeOrder && req.method === 'POST')
         ) {
           if (!session) return fail(res, 401, 'Unauthorized');
+          if (roundDetail && isStaff(session.user.role)) {
+            const staffRound = dispatch.getAnyRound(roundDetail[1] ?? '');
+            return send(res, staffRound.status, staffRound.body);
+          }
           if (session.user.role !== 'repartidor')
             return fail(res, 403, 'Forbidden resource');
           const r = roundDetail
@@ -911,6 +927,10 @@ export async function startMockApi(
             isStaff(session.user.role)
           ) {
             const r = orderStore.cancelStaff(id, parseJson(body)?.reason);
+            return send(res, r.status, r.body);
+          }
+          if (!cancel && req.method === 'GET' && isStaff(session.user.role)) {
+            const r = orderStore.getAny(id);
             return send(res, r.status, r.body);
           }
           if (session.user.role !== 'cliente')

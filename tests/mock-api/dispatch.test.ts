@@ -161,4 +161,41 @@ describe('mock de despacho', () => {
     expect(taken.status).toBe(409);
     expect(s.dispatch.deliver(COURIER, 'no-uuid').status).toBe(400);
   });
+
+  it('listAllRounds trae las rondas de todos los repartidores (todas si no hay filtro) y getAnyRound cualquiera', () => {
+    const { orders, dispatch, ready } = setup();
+    const a = ready(POINT_ID.plazoleta);
+    const first = dispatch.createRound(COURIER, { orderIds: [a.id] }).body as {
+      id: string;
+    };
+    const b = ready(POINT_ID.plazoleta);
+    const second = dispatch.createRound('u-repartidor-2', {
+      orderIds: [b.id],
+    }).body as { id: string };
+    const all = dispatch.listAllRounds(new URLSearchParams('')).body as {
+      total: number;
+      data: { id: string }[];
+    };
+    expect(all.total).toBe(2);
+    expect(all.data.map((r) => r.id).sort()).toEqual(
+      [first.id, second.id].sort(),
+    );
+    dispatch.deliver(COURIER, a.id);
+    const done = dispatch.listAllRounds(
+      new URLSearchParams('status=finalizada'),
+    ).body as { total: number };
+    expect(done.total).toBe(1);
+    const active = dispatch.listAllRounds(new URLSearchParams('status=activa'))
+      .body as { total: number };
+    expect(active.total).toBe(1);
+    expect(dispatch.listAllRounds(new URLSearchParams('status=x')).status).toBe(
+      400,
+    );
+    expect(dispatch.getAnyRound(second.id).status).toBe(200);
+    expect(dispatch.getAnyRound('no').status).toBe(400);
+    expect(
+      dispatch.getAnyRound('0b1f6f8e-9a0c-4f3e-9d5e-0a1b2c3d4e5f').status,
+    ).toBe(404);
+    void orders;
+  });
 });

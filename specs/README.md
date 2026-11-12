@@ -28,7 +28,7 @@ Plantillas en `specs/_templates/`.
 | 007a | Admin: usuarios | implementado; falta tu prueba manual y revisión |
 | 007b | Admin: catálogo y combos | implementado; falta tu prueba manual y revisión |
 | 007c | Admin: zonas y puntos de entrega | pendiente |
-| 007d | Admin y operador: pedidos y rondas | pendiente |
+| 007d | Admin y operador: pedidos y rondas | implementado; falta tu prueba manual y revisión |
 | 008 | Admin: encuestas y panel de métricas | pendiente |
 | 009 | Despliegue | pendiente |
 

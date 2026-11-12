@@ -23,11 +23,21 @@ describe('NAV', () => {
       const enabled = NAV[role].filter((i) => i.enabled).map((i) => i.label);
       const expected: Record<(typeof ROLES)[number], string[]> = {
         cliente: ['Inicio', 'Menú', 'Mis pedidos', 'Mi perfil'],
-        operador: ['Inicio', 'Cocina', 'Productos', 'Inventario', 'Mi cuenta'],
+        operador: [
+          'Inicio',
+          'Cocina',
+          'Pedidos',
+          'Rondas',
+          'Productos',
+          'Inventario',
+          'Mi cuenta',
+        ],
         admin: [
           'Inicio',
           'Cocina',
           'Inventario',
+          'Pedidos',
+          'Rondas',
           'Catálogo',
           'Usuarios',
           'Mi cuenta',

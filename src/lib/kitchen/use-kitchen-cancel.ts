@@ -26,10 +26,14 @@ export function useKitchenCancel(
         );
       }
       void queryClient.invalidateQueries({ queryKey: ['kitchen'] });
+      void queryClient.invalidateQueries({ queryKey: ['staff-orders'] });
+      void queryClient.invalidateQueries({ queryKey: ['staff-order'] });
       onDone?.(order);
     },
     onError: (error) => {
       void queryClient.invalidateQueries({ queryKey: ['kitchen'] });
+      void queryClient.invalidateQueries({ queryKey: ['staff-orders'] });
+      void queryClient.invalidateQueries({ queryKey: ['staff-order'] });
       onFail?.(error);
     },
   });

@@ -436,4 +436,55 @@ describe('pasarela por la ruta de Next (CA-15, CA-24)', () => {
       expect(await response.json()).toMatchObject({ phone: '+573007654322' });
     });
   });
+
+  describe('admin: pedidos y rondas por la pasarela (007d)', () => {
+    async function adminCookie(): Promise<string> {
+      const login = await fetch(`${mock.url}/auth/login`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ username: 'admin', password: MOCK_PASSWORD }),
+      });
+      const { accessToken } = (await login.json()) as { accessToken: string };
+      return `session=${accessToken}`;
+    }
+    const get = (path: string, cookie: string) =>
+      GET(
+        new Request(`http://${HOST}/api${path}`, {
+          method: 'GET',
+          headers: { host: HOST, cookie },
+        }),
+      );
+
+    it('GET /api/orders envía page, limit y status al back', async () => {
+      const response = await get(
+        '/orders?page=1&limit=20&status=en_camino',
+        await adminCookie(),
+      );
+      expect(response.status).toBe(200);
+      expect(mock.requests.at(-1)).toMatchObject({
+        path: '/api/v1/orders',
+        query: '?page=1&limit=20&status=en_camino',
+      });
+    });
+
+    it('GET /api/orders/:id responde 404 con el texto del back', async () => {
+      const response = await get(
+        '/orders/0b1f6f8e-9a0c-4f3e-9d5e-0a1b2c3d4e5f',
+        await adminCookie(),
+      );
+      expect(response.status).toBe(404);
+    });
+
+    it('GET /api/dispatch/rounds envía el filtro de estado y trae todas las rondas', async () => {
+      const response = await get(
+        '/dispatch/rounds?page=1&limit=20&status=activa',
+        await adminCookie(),
+      );
+      expect(response.status).toBe(200);
+      expect(mock.requests.at(-1)).toMatchObject({
+        path: '/api/v1/dispatch/rounds',
+        query: '?page=1&limit=20&status=activa',
+      });
+    });
+  });
 });

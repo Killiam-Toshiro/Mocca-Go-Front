@@ -229,6 +229,41 @@ export function createDispatchStore(
     });
   }
 
+  /** `GET /dispatch/rounds` de admin y operador: todas las rondas; sin `status`, activas y finalizadas. */
+  function listAllRounds(params: URLSearchParams): OrderResult {
+    const status = params.get('status');
+    if (status !== null && status !== 'activa' && status !== 'finalizada')
+      return err(400, ['status inválido']);
+    const page = Number(params.get('page') ?? 1);
+    const limit = Number(params.get('limit') ?? 20);
+    if (
+      !Number.isInteger(page) ||
+      page < 1 ||
+      !Number.isInteger(limit) ||
+      limit < 1 ||
+      limit > 100
+    )
+      return err(400, ['page o limit inválidos']);
+    const all = rounds
+      .filter((r) => status === null || r.status === status)
+      .sort((a, b) => b.startedAt.localeCompare(a.startedAt));
+    const start = (page - 1) * limit;
+    return ok(200, {
+      page,
+      limit,
+      total: all.length,
+      totalPages: Math.ceil(all.length / limit),
+      data: all.slice(start, start + limit).map(view),
+    });
+  }
+
+  /** `GET /dispatch/rounds/:id` de admin y operador: cualquier ronda. */
+  function getAnyRound(id: string): OrderResult {
+    if (!UUID_V4.test(id)) return err(400, ['id debe ser un UUID']);
+    const round = rounds.find((r) => r.id === id);
+    return round ? ok(200, view(round)) : err(404, 'Ronda no encontrada.');
+  }
+
   function getRound(courierId: string, id: string): OrderResult {
     if (!UUID_V4.test(id)) return err(400, ['id debe ser un UUID']);
     const round = rounds.find((r) => r.id === id && r.courier.id === courierId);
@@ -307,6 +342,8 @@ export function createDispatchStore(
     queue,
     createRound,
     listRounds,
+    listAllRounds,
+    getAnyRound,
     getRound,
     deliver: (courierId: string, id: string) =>
       close(courierId, id, 'entregado', null),
