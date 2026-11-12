@@ -487,4 +487,98 @@ describe('pasarela por la ruta de Next (CA-15, CA-24)', () => {
       });
     });
   });
+
+  describe('admin: zonas y puntos por la pasarela (007c)', () => {
+    async function cookieOf(username: string): Promise<string> {
+      const login = await fetch(`${mock.url}/auth/login`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ username, password: MOCK_PASSWORD }),
+      });
+      const { accessToken } = (await login.json()) as { accessToken: string };
+      return `session=${accessToken}`;
+    }
+    const call = (
+      handler: typeof GET,
+      method: string,
+      path: string,
+      cookie?: string,
+      body?: unknown,
+    ) =>
+      handler(
+        new Request(`http://${HOST}/api${path}`, {
+          method,
+          headers: {
+            host: HOST,
+            origin: `http://${HOST}`,
+            'content-type': 'application/json',
+            ...(cookie ? { cookie } : {}),
+          },
+          ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+        }),
+      );
+
+    it('GET /api/delivery-zones/all es solo del admin; la lista pública no pide sesión', async () => {
+      const admin = await cookieOf('admin');
+      const all = await call(GET, 'GET', '/delivery-zones/all', admin);
+      expect(all.status).toBe(200);
+      const { data } = (await all.json()) as { data: { name: string }[] };
+      expect(data.length).toBeGreaterThan(0);
+      const operator = await cookieOf('operador');
+      expect(
+        (await call(GET, 'GET', '/delivery-zones/all', operator)).status,
+      ).toBe(403);
+      const visitor = await call(GET, 'GET', '/delivery-zones');
+      expect(visitor.status).toBe(200);
+    });
+
+    it('crea una zona y un punto, edita, mueve y elimina por la pasarela', async () => {
+      const admin = await cookieOf('admin');
+      const zone = await call(POST, 'POST', '/delivery-zones', admin, {
+        name: 'Ruta de prueba',
+      });
+      expect(zone.status).toBe(201);
+      const { id } = (await zone.json()) as { id: string };
+      const point = await call(POST, 'POST', '/delivery-points', admin, {
+        zoneId: id,
+        name: 'Punto de ruta',
+        floors: 2,
+      });
+      expect(point.status).toBe(201);
+      const { id: pointId } = (await point.json()) as { id: string };
+      expect(
+        (
+          await call(PATCH, 'PATCH', `/delivery-points/${pointId}`, admin, {
+            hint: null,
+            active: false,
+          })
+        ).status,
+      ).toBe(200);
+      const blocked = await call(
+        DELETE,
+        'DELETE',
+        `/delivery-zones/${id}`,
+        admin,
+      );
+      expect(blocked.status).toBe(409);
+      expect(
+        (await call(DELETE, 'DELETE', `/delivery-points/${pointId}`, admin))
+          .status,
+      ).toBe(204);
+      expect(
+        (await call(DELETE, 'DELETE', `/delivery-zones/${id}`, admin)).status,
+      ).toBe(204);
+    });
+
+    it('un operador no puede escribir zonas ni puntos', async () => {
+      const operator = await cookieOf('operador');
+      expect(
+        (
+          await call(POST, 'POST', '/delivery-zones', operator, {
+            name: 'Nope',
+          })
+        ).status,
+      ).toBe(403);
+    });
+  });
 });

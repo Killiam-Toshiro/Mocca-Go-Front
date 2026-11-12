@@ -353,6 +353,8 @@ export function createDispatchStore(
       body: Record<string, unknown> | null,
     ) => close(courierId, id, 'no_entregado', body),
     foreign,
+    /** ¿Alguna ronda usó esta zona? (el back no deja eliminarla). */
+    usesZone: (zoneId: string) => rounds.some((r) => r.zone.id === zoneId),
     setProfile(change: Partial<Profile>, courierId = OWN) {
       profiles.set(courierId, { ...profileOf(courierId), ...change });
     },

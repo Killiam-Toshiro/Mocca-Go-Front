@@ -2123,6 +2123,7 @@
         "tags": ["delivery-zones"]
       },
       "delete": {
+        "description": "Responde `409` si la zona aún tiene puntos o si alguna ronda de despacho la usó (en ese caso desactívala con `PATCH /delivery-zones/:id`).",
         "operationId": "DeliveryZonesController_remove",
         "parameters": [
           {
@@ -2181,7 +2182,7 @@
             }
           },
           "409": {
-            "description": "La zona tiene puntos.",
+            "description": "La zona tiene puntos, o tiene rondas de despacho; desactívala en vez de eliminarla.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2196,7 +2197,7 @@
             "bearer": []
           }
         ],
-        "summary": "Eliminar una zona sin puntos (solo admin)",
+        "summary": "Eliminar una zona sin puntos ni rondas (solo admin)",
         "tags": ["delivery-zones"]
       }
     },
@@ -2381,6 +2382,7 @@
         "tags": ["delivery-points"]
       },
       "delete": {
+        "description": "Si algún pedido ya usó el punto responde `409`: desactívalo con `PATCH /delivery-points/:id`.",
         "operationId": "DeliveryPointsController_remove",
         "parameters": [
           {
@@ -2437,6 +2439,16 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "El punto tiene pedidos; desactívalo en vez de eliminarlo.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2444,7 +2456,7 @@
             "bearer": []
           }
         ],
-        "summary": "Eliminar un punto (solo admin)",
+        "summary": "Eliminar un punto sin pedidos (solo admin)",
         "tags": ["delivery-points"]
       }
     },

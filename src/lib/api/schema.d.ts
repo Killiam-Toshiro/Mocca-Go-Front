@@ -433,7 +433,10 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Eliminar una zona sin puntos (solo admin) */
+        /**
+         * Eliminar una zona sin puntos ni rondas (solo admin)
+         * @description Responde `409` si la zona aún tiene puntos o si alguna ronda de despacho la usó (en ese caso desactívala con `PATCH /delivery-zones/:id`).
+         */
         delete: operations["DeliveryZonesController_remove"];
         options?: never;
         head?: never;
@@ -468,7 +471,10 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Eliminar un punto (solo admin) */
+        /**
+         * Eliminar un punto sin pedidos (solo admin)
+         * @description Si algún pedido ya usó el punto responde `409`: desactívalo con `PATCH /delivery-points/:id`.
+         */
         delete: operations["DeliveryPointsController_remove"];
         options?: never;
         head?: never;
@@ -3426,7 +3432,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description La zona tiene puntos. */
+            /** @description La zona tiene puntos, o tiene rondas de despacho; desactívala en vez de eliminarla. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -3624,6 +3630,15 @@ export interface operations {
             };
             /** @description Punto no encontrado. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description El punto tiene pedidos; desactívalo en vez de eliminarlo. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

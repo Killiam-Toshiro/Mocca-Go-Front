@@ -9,6 +9,8 @@
  *   - GET /menu devuelve `{ data }` (20 productos y 3 combos); respeta behavior.menuDelayMs
  *     y behavior.menuStatus (≠ 0 responde ese error). Control para E2E, fuera de /api/v1:
  *     POST /__mock/menu `{ sku, available?, price?, remove? | restore? }` y POST /__mock/menu/reset
+ *   - Zonas y puntos (007c): GET /delivery-zones (público: activos), GET /delivery-zones/all, POST|PATCH|DELETE /delivery-zones[/:id],
+ *     POST|PATCH|DELETE /delivery-points[/:id] (solo admin; textos del back, 409 al eliminar con historial). Control: POST /__mock/zones/reset
  *   - Pedidos: GET /delivery-zones, POST/GET /orders, GET /orders/:id, POST /orders/:id/cancel
  *   - Cliente: GET/PATCH /customers/me, POST /orders/:id/survey, PATCH /auth/password (reglas y textos del back)
  *     (tarjeta 4000000000000002 → 402; producto agotado → 409; misma Idempotency-Key → 200).
@@ -35,7 +37,8 @@ import type { AddressInfo } from 'node:net';
 import { createDispatchStore } from './dispatch.ts';
 import { createInventoryStore } from './inventory.ts';
 import { buildMenu, type MockMenuItem } from './menu.ts';
-import { buildZones, createOrderStore, type OrderStatus } from './orders.ts';
+import { createOrderStore, type OrderStatus } from './orders.ts';
+import { createZonesStore } from './zones.ts';
 import { createProfileStore } from './profile.ts';
 import { createUserStore } from './users.ts';
 
@@ -205,9 +208,13 @@ export async function startMockApi(
     () => users.staff(),
   );
   const inventory = createInventoryStore(() => state.menu);
+  const zonesStore = createZonesStore({
+    usedPoint: (id) => orderStore.orders.some((o) => o.delivery.pointId === id),
+    usedZone: (id) => dispatch.usesZone(id),
+  });
   const orderStore = createOrderStore(
     () => inventory.menu(),
-    () => buildZones(),
+    () => zonesStore.publicZones(),
     (customerId, order) => {
       const frame = `event: order\ndata: ${JSON.stringify({
         number: order.number,
@@ -223,7 +230,7 @@ export async function startMockApi(
 
   const dispatch = createDispatchStore(
     orderStore,
-    () => buildZones(),
+    () => zonesStore.publicZones(),
     (id) => users.contactOf(id),
   );
 
@@ -264,6 +271,7 @@ export async function startMockApi(
       inventory.reset();
       orderStore.reset();
       dispatch.reset();
+      zonesStore.reset();
       state.behavior.streamGapMs = 150;
       state.behavior.failMe = false;
       state.behavior.streamMode = 'live';
@@ -512,6 +520,10 @@ export async function startMockApi(
     if (url.pathname === '/__mock/stream/count' && req.method === 'GET') {
       return send(res, 200, { open: channels.size });
     }
+    if (url.pathname === '/__mock/zones/reset' && req.method === 'POST') {
+      zonesStore.reset();
+      return send(res, 204);
+    }
     if (url.pathname === '/__mock/orders/reset' && req.method === 'POST') {
       orderStore.reset();
       dispatch.reset();
@@ -595,7 +607,21 @@ export async function startMockApi(
           return fail(res, state.behavior.menuStatus, 'Error simulado');
         return send(res, 200, { data: inventory.menu() });
       case 'GET /delivery-zones':
-        return send(res, 200, { data: buildZones() });
+        return send(res, 200, { data: zonesStore.publicZones() });
+      case 'GET /delivery-zones/all':
+      case 'POST /delivery-zones':
+      case 'POST /delivery-points': {
+        if (!session) return fail(res, 401, 'Unauthorized');
+        if (session.user.role !== 'admin')
+          return fail(res, 403, 'Forbidden resource');
+        const r =
+          route === 'GET /delivery-zones/all'
+            ? zonesStore.allZones()
+            : route === 'POST /delivery-zones'
+              ? zonesStore.createZone(parseJson(body))
+              : zonesStore.createPoint(parseJson(body));
+        return send(res, r.status, r.body);
+      }
       case 'POST /orders': {
         if (!session) return fail(res, 401, 'Unauthorized');
         if (session.user.role !== 'cliente')
@@ -887,6 +913,28 @@ export async function startMockApi(
                   : req.method === 'DELETE'
                     ? inventory.removeProduct(id)
                     : inventory.updateProduct(id, parseJson(body));
+            return send(res, r.status, r.body);
+          }
+        }
+        const delivery = /^\/delivery-(zones|points)\/([^/]+)$/.exec(
+          url.pathname.slice(PREFIX.length),
+        );
+        if (delivery) {
+          if (!session) return fail(res, 401, 'Unauthorized');
+          if (session.user.role !== 'admin')
+            return fail(res, 403, 'Forbidden resource');
+          const [, kind, id = ''] = delivery;
+          const zone = kind === 'zones';
+          if (req.method === 'PATCH') {
+            const r = zone
+              ? zonesStore.updateZone(id, parseJson(body))
+              : zonesStore.updatePoint(id, parseJson(body));
+            return send(res, r.status, r.body);
+          }
+          if (req.method === 'DELETE') {
+            const r = zone
+              ? zonesStore.removeZone(id)
+              : zonesStore.removePoint(id);
             return send(res, r.status, r.body);
           }
         }

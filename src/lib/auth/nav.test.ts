@@ -39,6 +39,7 @@ describe('NAV', () => {
           'Pedidos',
           'Rondas',
           'Catálogo',
+          'Zonas y puntos',
           'Usuarios',
           'Mi cuenta',
         ],
