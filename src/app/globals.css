@@ -38,6 +38,12 @@
   --input: #9c8470; /* borde de campos: 3:1 sobre fondos claros */
   --ring: #c25a00; /* anillo de foco */
 
+  /* Gráficas (008): cada color pasa 3:1 sobre la tarjeta; el significado siempre va también en texto */
+  --chart-main: #a94400; /* barras principales (ventas, calificaciones) */
+  --chart-good: #2e6f5e; /* entregado */
+  --chart-bad: #b42318; /* no entregado */
+  --chart-neutral: #735c49; /* cancelado */
+
   /* Tipografía de marca (logo y títulos) */
   --font-display: Georgia, 'Times New Roman', serif;
 }
@@ -64,6 +70,7 @@
   --color-destructive-foreground: var(--destructive-foreground);
   --color-brand: var(--brand);
   --color-brand-strong: var(--brand-strong);
+  --color-chart-main: var(--chart-main);
   --font-display: var(--font-display);
   --color-border: var(--border);
   --color-input: var(--input);

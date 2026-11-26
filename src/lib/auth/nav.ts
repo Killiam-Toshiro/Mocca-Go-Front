@@ -14,12 +14,6 @@ export const ROLE_LABEL: Record<Role, string> = {
   admin: 'Administrador',
 };
 
-const soon = (href: string, label: string): NavItem => ({
-  href,
-  label,
-  enabled: false,
-});
-
 /**
  * Navegación de cada rol. Solo «Inicio» existe en el incremento 1; el resto son
  * las secciones del handoff §2, deshabilitadas hasta su incremento.
@@ -50,13 +44,13 @@ export const NAV: Record<Role, NavItem[]> = {
     { href: ROLE_HOME.admin, label: 'Inicio', enabled: true },
     { href: '/admin/cocina', label: 'Cocina', enabled: true },
     { href: '/admin/inventario', label: 'Inventario', enabled: true },
-    soon('/admin/metricas', 'Métricas'),
+    { href: '/admin/metricas', label: 'Métricas', enabled: true },
     { href: '/admin/pedidos', label: 'Pedidos', enabled: true },
     { href: '/admin/rondas', label: 'Rondas', enabled: true },
     { href: '/admin/catalogo', label: 'Catálogo', enabled: true },
     { href: '/admin/zonas', label: 'Zonas y puntos', enabled: true },
     { href: '/admin/usuarios', label: 'Usuarios', enabled: true },
-    soon('/admin/encuestas', 'Encuestas'),
+    { href: '/admin/encuestas', label: 'Encuestas', enabled: true },
     { href: '/admin/cuenta', label: 'Mi cuenta', enabled: true },
   ],
 };

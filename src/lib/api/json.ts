@@ -14,6 +14,8 @@ export async function requestJson<T = undefined>(
     headers?: Record<string, string>;
     /** Rutas privadas: un 401 cierra la sesión local (como el cliente tipado). */
     handleUnauthorized?: boolean;
+    /** Para cancelar: si se aborta, se lanza el motivo del aborto (no un error de red). */
+    signal?: AbortSignal;
   } = {},
 ): Promise<T> {
   let response: Response;
@@ -29,8 +31,10 @@ export async function requestJson<T = undefined>(
         ...options.headers,
       },
       body: options.body === undefined ? null : JSON.stringify(options.body),
+      ...(options.signal ? { signal: options.signal } : {}),
     });
-  } catch {
+  } catch (error) {
+    if (options.signal?.aborted) throw error;
     throw networkError();
   }
 

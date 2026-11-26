@@ -11,6 +11,7 @@
  *     POST /__mock/menu `{ sku, available?, price?, remove? | restore? }` y POST /__mock/menu/reset
  *   - Zonas y puntos (007c): GET /delivery-zones (público: activos), GET /delivery-zones/all, POST|PATCH|DELETE /delivery-zones[/:id],
  *     POST|PATCH|DELETE /delivery-points[/:id] (solo admin; textos del back, 409 al eliminar con historial). Control: POST /__mock/zones/reset
+ *   - Admin (008): GET /metrics y GET /surveys con datos sembrados relativos a hoy (45 días; 3 pedidos por día; las 2 primeras zonas)
  *   - Pedidos: GET /delivery-zones, POST/GET /orders, GET /orders/:id, POST /orders/:id/cancel
  *   - Cliente: GET/PATCH /customers/me, POST /orders/:id/survey, PATCH /auth/password (reglas y textos del back)
  *     (tarjeta 4000000000000002 → 402; producto agotado → 409; misma Idempotency-Key → 200).
@@ -38,6 +39,7 @@ import { createDispatchStore } from './dispatch.ts';
 import { createInventoryStore } from './inventory.ts';
 import { buildMenu, type MockMenuItem } from './menu.ts';
 import { createOrderStore, type OrderStatus } from './orders.ts';
+import { createInsightsStore } from './insights.ts';
 import { createZonesStore } from './zones.ts';
 import { createProfileStore } from './profile.ts';
 import { createUserStore } from './users.ts';
@@ -212,6 +214,11 @@ export async function startMockApi(
     usedPoint: (id) => orderStore.orders.some((o) => o.delivery.pointId === id),
     usedZone: (id) => dispatch.usesZone(id),
   });
+  const insights = createInsightsStore(() =>
+    (
+      zonesStore.allZones().body as { data: { id: string; name: string }[] }
+    ).data.map((z) => ({ id: z.id, name: z.name })),
+  );
   const orderStore = createOrderStore(
     () => inventory.menu(),
     () => zonesStore.publicZones(),
@@ -272,6 +279,7 @@ export async function startMockApi(
       orderStore.reset();
       dispatch.reset();
       zonesStore.reset();
+      insights.reset();
       state.behavior.streamGapMs = 150;
       state.behavior.failMe = false;
       state.behavior.streamMode = 'live';
@@ -606,6 +614,17 @@ export async function startMockApi(
         if (state.behavior.menuStatus !== 0)
           return fail(res, state.behavior.menuStatus, 'Error simulado');
         return send(res, 200, { data: inventory.menu() });
+      case 'GET /metrics':
+      case 'GET /surveys': {
+        if (!session) return fail(res, 401, 'Unauthorized');
+        if (session.user.role !== 'admin')
+          return fail(res, 403, 'Forbidden resource');
+        const r =
+          route === 'GET /metrics'
+            ? insights.metrics(url.searchParams)
+            : insights.surveys(url.searchParams);
+        return send(res, r.status, r.body);
+      }
       case 'GET /delivery-zones':
         return send(res, 200, { data: zonesStore.publicZones() });
       case 'GET /delivery-zones/all':

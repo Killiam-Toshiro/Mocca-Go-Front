@@ -81,9 +81,15 @@ describe('AppShell', () => {
     expect(
       sidebar().getByRole('link', { name: 'Zonas y puntos' }),
     ).toHaveAttribute('href', '/admin/zonas');
-    const metricas = sidebar().getByText('Métricas').closest('[aria-disabled]');
-    expect(metricas).toHaveAttribute('aria-disabled', 'true');
-    expect(sidebar().getAllByText('Próximamente')).toHaveLength(2);
+    expect(sidebar().getByRole('link', { name: 'Métricas' })).toHaveAttribute(
+      'href',
+      '/admin/metricas',
+    );
+    expect(sidebar().getByRole('link', { name: 'Encuestas' })).toHaveAttribute(
+      'href',
+      '/admin/encuestas',
+    );
+    expect(sidebar().queryByText('Próximamente')).not.toBeInTheDocument();
   });
 
   it.each([

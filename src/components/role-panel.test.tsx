@@ -25,13 +25,13 @@ describe('RolePanel', () => {
     expect(screen.getByText('Repartidor')).toBeInTheDocument();
   });
 
-  it('lista las secciones futuras del rol como deshabilitadas', () => {
+  it('el admin ya no tiene secciones futuras (008): no aparece «Próximamente»', () => {
     mount('admin');
-    const section = screen.getByRole('region', { name: 'Próximamente' });
-    expect(section.querySelectorAll('li')).toHaveLength(2);
-    expect(section.querySelectorAll('[aria-disabled="true"]')).toHaveLength(2);
-    expect(screen.getByText('Métricas')).toBeInTheDocument();
-    expect(screen.getByText('Encuestas')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('region', { name: 'Próximamente' }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText('Métricas')).not.toBeInTheDocument();
+    expect(screen.queryByText('Encuestas')).not.toBeInTheDocument();
     // «Usuarios» (007a), «Catálogo» (007b), «Pedidos» (007d) y «Zonas y puntos» (007c) ya existen: no figuran entre las secciones futuras.
     expect(screen.queryByText('Usuarios')).not.toBeInTheDocument();
     expect(screen.queryByText('Catálogo')).not.toBeInTheDocument();

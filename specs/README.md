@@ -29,7 +29,8 @@ Plantillas en `specs/_templates/`.
 | 007b | Admin: catálogo y combos | implementado; falta tu prueba manual y revisión |
 | 007c | Admin: zonas y puntos de entrega | implementado; falta tu prueba manual y revisión |
 | 007d | Admin y operador: pedidos y rondas | implementado; falta tu prueba manual y revisión |
-| 008 | Admin: encuestas y panel de métricas | pendiente |
+| 008 | Admin: encuestas y panel de métricas | implementado; falta tu prueba manual y revisión |
+| 008b | Exportar métricas y encuestas a Excel | implementado; falta tu prueba manual y revisión |
 | 009 | Despliegue | pendiente |
 
 Estados: pendiente → spec en borrador → spec aprobada → plan aprobado → en implementación → en revisión → cerrado.

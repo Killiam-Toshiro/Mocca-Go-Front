@@ -56,6 +56,10 @@ const TEXT: [string, string][] = [
 
 /** Componentes de interfaz (bordes de campos, foco): 3:1 como mínimo. */
 const UI: [string, string][] = [
+  ['chart-main', 'card'],
+  ['chart-good', 'card'],
+  ['chart-bad', 'card'],
+  ['chart-neutral', 'card'],
   ['input', 'card'],
   ['input', 'background'],
   ['ring', 'background'],

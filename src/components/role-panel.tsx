@@ -27,31 +27,36 @@ export function RolePanel() {
           <strong className="font-medium text-foreground">
             {ROLE_LABEL[user.role]}
           </strong>
-          . Estamos construyendo tu panel.
+          .{' '}
+          {upcoming.length > 0
+            ? 'Estamos construyendo tu panel.'
+            : 'Usa el menú para ir a cada sección.'}
         </p>
       </div>
-      <section aria-labelledby="proximamente" className="grid gap-3">
-        <h2
-          id="proximamente"
-          className="text-sm font-medium text-muted-foreground"
-        >
-          Próximamente
-        </h2>
-        <ul className="grid gap-3 sm:grid-cols-2">
-          {upcoming.map((item) => (
-            <li key={item.href}>
-              <Card aria-disabled="true" className="gap-0 py-4 opacity-60">
-                <CardHeader>
-                  <CardTitle className="text-base">{item.label}</CardTitle>
-                  <CardDescription>
-                    Disponible en una próxima versión.
-                  </CardDescription>
-                </CardHeader>
-              </Card>
-            </li>
-          ))}
-        </ul>
-      </section>
+      {upcoming.length > 0 ? (
+        <section aria-labelledby="proximamente" className="grid gap-3">
+          <h2
+            id="proximamente"
+            className="text-sm font-medium text-muted-foreground"
+          >
+            Próximamente
+          </h2>
+          <ul className="grid gap-3 sm:grid-cols-2">
+            {upcoming.map((item) => (
+              <li key={item.href}>
+                <Card aria-disabled="true" className="gap-0 py-4 opacity-60">
+                  <CardHeader>
+                    <CardTitle className="text-base">{item.label}</CardTitle>
+                    <CardDescription>
+                      Disponible en una próxima versión.
+                    </CardDescription>
+                  </CardHeader>
+                </Card>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </div>
   );
 }
