@@ -1,0 +1,91 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+/*
+ * Tokens de color de Mocca Go: ÚNICO lugar donde se definen los colores.
+ * Para cambiar la identidad visual basta con editar los valores de este bloque;
+ * `src/lib/design/tokens.test.ts` comprueba que los pares de texto y fondo sigan
+ * cumpliendo contraste AA. Roles, valores y cómo cambiarlos: `docs/design-tokens.md`.
+ * (El ícono de la pestaña, `src/app/icon.svg`, no puede leer variables CSS: va aparte.)
+ */
+:root {
+  --radius: 0.625rem;
+
+  /* Superficies (marrones claros) */
+  --background: #fbf5ee; /* crema: fondo de la app */
+  --foreground: #2e1b0f; /* espresso: texto principal */
+  --card: #fffdfa; /* blanco cálido: tarjetas y formularios */
+  --card-foreground: #2e1b0f;
+  --popover: #fffdfa;
+  --popover-foreground: #2e1b0f;
+  --secondary: #f3e6d8; /* café con leche: menú lateral, zonas suaves */
+  --secondary-foreground: #2e1b0f;
+  --muted: #f3e6d8;
+  --muted-foreground: #735c49; /* tostado: texto secundario */
+  --accent: #f3e6d8; /* fondo al pasar el cursor */
+  --accent-foreground: #2e1b0f;
+
+  /* Marca (naranja ámbar). Sobre el ámbar el texto va en espresso, nunca en blanco. */
+  --primary: #fd8000; /* ámbar: botón principal, ítem activo, logo */
+  --primary-foreground: #2e1b0f;
+  --brand: #fd8000; /* ámbar de marca (logo); igual que --primary */
+  --brand-strong: #a94400; /* naranja tostado: enlaces y texto de marca */
+
+  /* Estados y contornos */
+  --destructive: #b42318; /* errores (rojo, distinto del naranja) */
+  --destructive-foreground: #ffffff;
+  --border: #e6d5c3; /* líneas decorativas */
+  --input: #9c8470; /* borde de campos: 3:1 sobre fondos claros */
+  --ring: #c25a00; /* anillo de foco */
+
+  /* Gráficas (008): cada color pasa 3:1 sobre la tarjeta; el significado siempre va también en texto */
+  --chart-main: #a94400; /* barras principales (ventas, calificaciones) */
+  --chart-good: #2e6f5e; /* entregado */
+  --chart-bad: #b42318; /* no entregado */
+  --chart-neutral: #735c49; /* cancelado */
+
+  /* Tipografía de marca (logo y títulos) */
+  --font-display: Georgia, 'Times New Roman', serif;
+}
+
+@theme inline {
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-chart-main: var(--chart-main);
+  --font-display: var(--font-display);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background font-sans text-foreground;
+  }
+}

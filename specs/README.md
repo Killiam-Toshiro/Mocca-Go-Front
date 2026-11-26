@@ -16,14 +16,21 @@ Plantillas en `specs/_templates/`.
 
 | N.º | Nombre | Estado |
 |---|---|---|
-| 001 | Base, login/registro y rutas por rol | spec en borrador |
-| 002 | Menú y carrito | pendiente |
-| 003 | Pedido, pago y seguimiento en vivo | pendiente |
-| 004 | Cocina | pendiente |
-| 005 | Repartidor | pendiente |
-| 006 | Cliente: encuesta y perfil | pendiente |
-| 007 | Admin: catálogo, zonas, usuarios | pendiente |
-| 008 | Admin: encuestas y panel de métricas | pendiente |
+| 001 | Base, login/registro y rutas por rol | en revisión (T-01 a T-26 hechas) |
+| 002 | Menú y carrito | implementado; falta tu prueba manual (T-14) y revisión |
+| 003 | Pedido y pago (checkout, mis pedidos, detalle, cancelar) | implementado; falta tu prueba manual (T-11) y revisión |
+| 003b | Seguimiento en vivo (SSE) | implementado; falta tu prueba manual (T-09) y revisión |
+| 004 | Cocina (operador y admin) | implementado; falta tu prueba manual y revisión |
+| 004b | Operador: productos agotados e inventario | implementado; falta tu prueba manual y revisión |
+| 004c | Producción del día (inventario como abasto de cocina) | implementado; falta tu prueba manual y revisión |
+| 005 | Repartidor (cola de despacho y rondas) | implementado; falta tu prueba manual y revisión |
+| 006 | Cliente: encuesta y perfil | implementado; falta tu prueba manual y revisión |
+| 007a | Admin: usuarios | implementado; falta tu prueba manual y revisión |
+| 007b | Admin: catálogo y combos | implementado; falta tu prueba manual y revisión |
+| 007c | Admin: zonas y puntos de entrega | implementado; falta tu prueba manual y revisión |
+| 007d | Admin y operador: pedidos y rondas | implementado; falta tu prueba manual y revisión |
+| 008 | Admin: encuestas y panel de métricas | implementado; falta tu prueba manual y revisión |
+| 008b | Exportar métricas y encuestas a Excel | implementado; falta tu prueba manual y revisión |
 | 009 | Despliegue | pendiente |
 
 Estados: pendiente → spec en borrador → spec aprobada → plan aprobado → en implementación → en revisión → cerrado.

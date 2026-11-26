@@ -343,6 +343,7 @@
         "tags": ["users"]
       },
       "get": {
+        "description": "Con `search` (usuario, nombre, teléfono y correo) y `role` (uno o varios separados por coma) el filtro lo hace el servidor; sin ellos devuelve todos, ordenados por `username`.",
         "operationId": "UsersController_list",
         "parameters": [
           {
@@ -367,6 +368,27 @@
               "maximum": 100,
               "default": 20,
               "type": "integer"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "Texto parcial, sin distinguir mayúsculas, en el usuario, el nombre, el teléfono y el correo del cliente. Con 3 o más dígitos también busca en los dígitos del teléfono. Si queda vacío tras recortarlo se ignora.",
+            "schema": {
+              "maxLength": 100,
+              "example": "300 123",
+              "type": "string"
+            }
+          },
+          {
+            "name": "role",
+            "required": false,
+            "in": "query",
+            "description": "Uno o varios roles separados por coma (`admin`, `operador`, `repartidor`, `cliente`); los repetidos cuentan una vez.",
+            "schema": {
+              "example": "admin,operador,repartidor",
+              "type": "string"
             }
           }
         ],
@@ -497,7 +519,7 @@
         "tags": ["users"]
       },
       "patch": {
-        "description": "No cambia el rol. Una contraseña nueva revoca las demás sesiones del usuario editado y reinicia su bloqueo de intentos.",
+        "description": "No cambia el rol. Una contraseña nueva revoca las demás sesiones del usuario editado y reinicia su bloqueo de intentos. En un cliente, nombre y teléfono se guardan en su ficha (2 a 100 caracteres de nombre; 2 a 80 en el personal) y el username no se edita.",
         "operationId": "UsersController_update",
         "parameters": [
           {
@@ -588,7 +610,7 @@
             "bearer": []
           }
         ],
-        "summary": "Editar username o contraseña (solo admin)",
+        "summary": "Editar username, contraseña, nombre o teléfono (solo admin)",
         "tags": ["users"]
       },
       "delete": {
@@ -651,7 +673,7 @@
             }
           },
           "409": {
-            "description": "Es el último admin, es tu propio usuario o tiene movimientos.",
+            "description": "Es el último admin, es tu propio usuario o tiene historial (movimientos, pedidos, rondas o encuestas).",
             "content": {
               "application/json": {
                 "schema": {
@@ -666,13 +688,13 @@
             "bearer": []
           }
         ],
-        "summary": "Eliminar usuario sin movimientos (solo admin)",
+        "summary": "Eliminar usuario sin historial (solo admin)",
         "tags": ["users"]
       }
     },
     "/api/v1/users/{id}/role": {
       "patch": {
-        "description": "Los nuevos permisos aplican desde la siguiente petición.",
+        "description": "Revoca todas las sesiones del usuario: debe iniciar sesión de nuevo y sus canales en vivo se cierran. Un admin no cambia su propio rol.",
         "operationId": "UsersController_changeRole",
         "parameters": [
           {
@@ -748,7 +770,7 @@
             }
           },
           "409": {
-            "description": "No se puede degradar al último admin registrado, o el usuario es un cliente.",
+            "description": "No se puede degradar al último admin, es tu propio rol o el usuario es un cliente.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2101,6 +2123,7 @@
         "tags": ["delivery-zones"]
       },
       "delete": {
+        "description": "Responde `409` si la zona aún tiene puntos o si alguna ronda de despacho la usó (en ese caso desactívala con `PATCH /delivery-zones/:id`).",
         "operationId": "DeliveryZonesController_remove",
         "parameters": [
           {
@@ -2159,7 +2182,7 @@
             }
           },
           "409": {
-            "description": "La zona tiene puntos.",
+            "description": "La zona tiene puntos, o tiene rondas de despacho; desactívala en vez de eliminarla.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2174,7 +2197,7 @@
             "bearer": []
           }
         ],
-        "summary": "Eliminar una zona sin puntos (solo admin)",
+        "summary": "Eliminar una zona sin puntos ni rondas (solo admin)",
         "tags": ["delivery-zones"]
       }
     },
@@ -2359,6 +2382,7 @@
         "tags": ["delivery-points"]
       },
       "delete": {
+        "description": "Si algún pedido ya usó el punto responde `409`: desactívalo con `PATCH /delivery-points/:id`.",
         "operationId": "DeliveryPointsController_remove",
         "parameters": [
           {
@@ -2415,6 +2439,16 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "El punto tiene pedidos; desactívalo en vez de eliminarlo.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2422,7 +2456,7 @@
             "bearer": []
           }
         ],
-        "summary": "Eliminar un punto (solo admin)",
+        "summary": "Eliminar un punto sin pedidos (solo admin)",
         "tags": ["delivery-points"]
       }
     },
@@ -4332,13 +4366,13 @@
           "phone": {
             "type": "string",
             "example": "+57 300 123 4567",
-            "description": "Teléfono del personal (no aplica a clientes); se guarda en E.164."
+            "description": "Teléfono de contacto (personal o cliente); se guarda en E.164."
           },
           "fullName": {
             "type": "string",
             "minLength": 2,
-            "maxLength": 80,
-            "description": "Nombre del personal (no aplica a clientes)."
+            "maxLength": 100,
+            "description": "Nombre de contacto: 2 a 80 caracteres para el personal y 2 a 100 para un cliente."
           }
         }
       },
